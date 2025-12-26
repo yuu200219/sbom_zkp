@@ -1,0 +1,32 @@
+version: "3.9"
+services:
+  zk:
+    build:
+      context: .
+      dockerfile: .Dockerfile.zk
+    container_name: zkbuilder
+    working_dir: /work
+    volumes:
+      - ./zkbuilder/circom:/work/circom
+      - ./zkbuilder/contracts:/work/contracts
+      - ./zkbuilder/scripts:/work/scripts
+    tty: true
+
+  hardhat:
+    image: node:20-bullseye
+    container_name: hardhat
+    working_dir: /work
+    command: bash -lc "npm install && npx hardhat node"
+    volumes:
+      - ./hardhat/contracts:/work/contracts
+      - ./hardhat/scripts:/work/scripts
+      - ./hardhat:/work
+    networks:
+      - zknet
+      
+networks:
+  zknet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16

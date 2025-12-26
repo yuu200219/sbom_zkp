@@ -1,0 +1,233 @@
+{
+  "merkleRoot": "044667ee04facebdf813bb826d88237954ee9c2dd6a173ba3219844d7fd0112f",
+  "components": [
+    {
+      "name": "certifi",
+      "version": "2025.11.12",
+      "hash": "97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b",
+      "merklePath": {
+        "pathElements": [
+          "2857e29ff0d34db842cd7ca3230549d1a697f96ee6d3fb071cfa6c7393832597",
+          "66b71347e03686695d3f719f37c57f3ff7bd1318269546d72d49875aab1377ed",
+          "4cc1538a5e922d9dcee8a015066e8c745ff3a852d104085af8e56ae1a26348d2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "2.0.12",
+      "hash": "2857e29ff0d34db842cd7ca3230549d1a697f96ee6d3fb071cfa6c7393832597",
+      "merklePath": {
+        "pathElements": [
+          "97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b",
+          "66b71347e03686695d3f719f37c57f3ff7bd1318269546d72d49875aab1377ed",
+          "4cc1538a5e922d9dcee8a015066e8c745ff3a852d104085af8e56ae1a26348d2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          1,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "click",
+      "version": "8.1.8",
+      "hash": "63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2",
+      "merklePath": {
+        "pathElements": [
+          "1c4c257b1892aec1398784c63791cbaa43062f1f7aeb555c4da961b20ee68f55",
+          "a9d23edb18d8c5a32fdb3cd98d5601537fc05e4970c2a5b255cb229ee92ae299",
+          "4cc1538a5e922d9dcee8a015066e8c745ff3a852d104085af8e56ae1a26348d2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          0,
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "flask",
+      "version": "2.0.1",
+      "hash": "1c4c257b1892aec1398784c63791cbaa43062f1f7aeb555c4da961b20ee68f55",
+      "merklePath": {
+        "pathElements": [
+          "63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2",
+          "a9d23edb18d8c5a32fdb3cd98d5601537fc05e4970c2a5b255cb229ee92ae299",
+          "4cc1538a5e922d9dcee8a015066e8c745ff3a852d104085af8e56ae1a26348d2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          1,
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "idna",
+      "version": "3.11",
+      "hash": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea",
+      "merklePath": {
+        "pathElements": [
+          "c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef",
+          "b989852acf15187e69d2fa8092daf1588e70dda126e12114b5577ce5f67592ac",
+          "0305b463179b06bb4e6a7783711564b9833ef5b9c37e7d3cd5f7cf1133005fb2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "itsdangerous",
+      "version": "2.2.0",
+      "hash": "c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef",
+      "merklePath": {
+        "pathElements": [
+          "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea",
+          "b989852acf15187e69d2fa8092daf1588e70dda126e12114b5577ce5f67592ac",
+          "0305b463179b06bb4e6a7783711564b9833ef5b9c37e7d3cd5f7cf1133005fb2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          1,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "jinja2",
+      "version": "3.1.6",
+      "hash": "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d",
+      "merklePath": {
+        "pathElements": [
+          "0303439a41979d9e74d18ff5e2dd8c43ed6c6001fd40e5bf2e43f7bd9bbc523f",
+          "f7cc9252f08fc4e2d83aaa125cb0bbd016e3168ec455ce250d6f49034311fa57",
+          "0305b463179b06bb4e6a7783711564b9833ef5b9c37e7d3cd5f7cf1133005fb2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          0,
+          1,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "markupsafe",
+      "version": "3.0.3",
+      "hash": "0303439a41979d9e74d18ff5e2dd8c43ed6c6001fd40e5bf2e43f7bd9bbc523f",
+      "merklePath": {
+        "pathElements": [
+          "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d",
+          "f7cc9252f08fc4e2d83aaa125cb0bbd016e3168ec455ce250d6f49034311fa57",
+          "0305b463179b06bb4e6a7783711564b9833ef5b9c37e7d3cd5f7cf1133005fb2",
+          "0c322425f543a05baa5c31f4a468c4be452d8b0dc4a4a85408dd7395cb7fe42a"
+        ],
+        "pathIndices": [
+          1,
+          1,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "name": "numpy",
+      "version": "1.21.0",
+      "hash": "1a784e8ff7ea2a32e393cc53eb0003eca1597c7ca628227e34ce34eb11645a0e",
+      "merklePath": {
+        "pathElements": [
+          "6c1246513ecd5ecd4528a0906f910e8f0f9c6b8ec72030dc9fd154dc1a6efd24",
+          "43ce1cf4a4d62624744de7cc502cc7e18d3d247f44e0a06a20618438662b03fa",
+          "db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71",
+          "7fa25865e9f9e22230495f9a3e4d7796e18fb84c4f67675f57cb9eef98d17578"
+        ],
+        "pathIndices": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "requests",
+      "version": "2.26.0",
+      "hash": "6c1246513ecd5ecd4528a0906f910e8f0f9c6b8ec72030dc9fd154dc1a6efd24",
+      "merklePath": {
+        "pathElements": [
+          "1a784e8ff7ea2a32e393cc53eb0003eca1597c7ca628227e34ce34eb11645a0e",
+          "43ce1cf4a4d62624744de7cc502cc7e18d3d247f44e0a06a20618438662b03fa",
+          "db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71",
+          "7fa25865e9f9e22230495f9a3e4d7796e18fb84c4f67675f57cb9eef98d17578"
+        ],
+        "pathIndices": [
+          1,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "urllib3",
+      "version": "1.26.20",
+      "hash": "0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e",
+      "merklePath": {
+        "pathElements": [
+          "2ad50fb9ed09cc3af22c54698351027ace879a0b60a3b5edf5730b2f7d876905",
+          "41b343a0e30e96e900fdc21aacaaac0dad12cc943f1fd88c268d1b5049bbd793",
+          "db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71",
+          "7fa25865e9f9e22230495f9a3e4d7796e18fb84c4f67675f57cb9eef98d17578"
+        ],
+        "pathIndices": [
+          0,
+          1,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "name": "werkzeug",
+      "version": "3.1.4",
+      "hash": "2ad50fb9ed09cc3af22c54698351027ace879a0b60a3b5edf5730b2f7d876905",
+      "merklePath": {
+        "pathElements": [
+          "0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e",
+          "41b343a0e30e96e900fdc21aacaaac0dad12cc943f1fd88c268d1b5049bbd793",
+          "db56114e00fdd4c1f85c892bf35ac9a89289aaecb1ebd0a96cde606a748b5d71",
+          "7fa25865e9f9e22230495f9a3e4d7796e18fb84c4f67675f57cb9eef98d17578"
+        ],
+        "pathIndices": [
+          1,
+          1,
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}

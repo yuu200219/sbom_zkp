@@ -1,0 +1,24 @@
+FROM node:20-bullseye
+
+# 基本工具
+RUN apt-get update && apt-get install -y \
+    build-essential git cmake python3 curl pkg-config libgmp-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# 安裝 Rust (for circom build)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --profile minimal --default-toolchain stable
+
+# 取得並安裝 circom
+RUN git clone https://github.com/iden3/circom.git /opt/circom \
+ && cd /opt/circom \
+ && cargo install --path circom
+
+# 安裝 snarkjs
+RUN npm install -g snarkjs
+
+WORKDIR /work
+CMD ["bash"]

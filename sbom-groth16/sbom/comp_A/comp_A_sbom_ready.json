@@ -1,0 +1,1095 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:4194ee5d-be7b-41ef-aecb-b1531afe3b6d",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-12-03T18:18:53+08:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "syft",
+          "version": "1.38.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "2d610f1a7b3cca86",
+      "type": "file",
+      "name": "requirements.txt",
+      "version": "sha256:053335377f50159bc1fea82c7d30947a0d7156da0272ae0de4ad87d4dbf2373b"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:pypi/certifi@2025.11.12?package-id=db667237fe17cc7f",
+      "type": "library",
+      "name": "certifi",
+      "version": "2025.11.12",
+      "cpe": "cpe:2.3:a:certifi:certifi:2025.11.12:*:*:*:*:python:*:*",
+      "purl": "pkg:pypi/certifi@2025.11.12",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "386594079829878219186165227781795637974972141910222418591769449937668867390"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "201868866801211571012711011112461517559"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "172877379048247796600711847802499902795"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/charset-normalizer@2.0.12?package-id=749fde4787224206",
+      "type": "library",
+      "name": "charset-normalizer",
+      "version": "2.0.12",
+      "cpe": "cpe:2.3:a:python-charset-normalizer:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/charset-normalizer@2.0.12",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset-normalizer:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset_normalizer:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset_normalizer:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset-normalizer:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset-normalizer:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset_normalizer:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset_normalizer:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset-normalizer:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset-normalizer:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset_normalizer:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset_normalizer:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset-normalizer:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset-normalizer:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset_normalizer:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset_normalizer:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-charset:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_charset:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:charset:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:charset-normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:charset_normalizer:2.0.12:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "9149819854496857266955325582555512707114276067905449226856945391920119112742"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "53625446154469282691675159436022073809"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "221440943232461800761003337088023864727"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2857e29ff0d34db842cd7ca3230549d1a697f96ee6d3fb071cfa6c7393832597"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/click@8.1.8?package-id=55488a3bcea166d7",
+      "type": "library",
+      "name": "click",
+      "version": "8.1.8",
+      "cpe": "cpe:2.3:a:python-click:python-click:8.1.8:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/click@8.1.8",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-click:python_click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_click:python-click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_click:python_click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:click:python-click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:click:python_click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-click:click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_click:click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:click:click:8.1.8:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "20463725442704914941377420977660526618318534355318177299212423058498336681686"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "132596713871604175732134674607505708987"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "131395001787436290535631536472250803122"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/flask@2.0.1?package-id=90389e86c072a122",
+      "type": "library",
+      "name": "flask",
+      "version": "2.0.1",
+      "cpe": "cpe:2.3:a:python-flask:python-flask:2.0.1:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/flask@2.0.1",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-flask:python_flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_flask:python-flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_flask:python_flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:flask:python-flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:flask:python_flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-flask:flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_flask:flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:flask:flask:2.0.1:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "19176417137092505270743774119461801376157382201610721600976108922503537249669"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "37613758645050584368905196485074865066"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "89090385266106653890691793308399079253"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1c4c257b1892aec1398784c63791cbaa43062f1f7aeb555c4da961b20ee68f55"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/idna@3.11?package-id=ace2848e7cfb3ec8",
+      "type": "library",
+      "name": "idna",
+      "version": "3.11",
+      "cpe": "cpe:2.3:a:python-idna:python-idna:3.11:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/idna@3.11",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-idna:python_idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_idna:python-idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_idna:python_idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:idna:python-idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:idna:python_idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-idna:idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_idna:idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:idna:idna:3.11:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "18816749745186282640150433495945543564715747399734857224288740714673080204242"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "158315888722475120626509056234421338509"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "95974116026139321911505709470828869610"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/itsdangerous@2.2.0?package-id=f3b5fe8d15457c32",
+      "type": "library",
+      "name": "itsdangerous",
+      "version": "2.2.0",
+      "cpe": "cpe:2.3:a:python-itsdangerous:python-itsdangerous:2.2.0:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/itsdangerous@2.2.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-itsdangerous:python_itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_itsdangerous:python-itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_itsdangerous:python_itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:itsdangerous:python-itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:itsdangerous:python_itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-itsdangerous:itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_itsdangerous:itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:itsdangerous:itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:itsdangerous:2.2.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "2668067648766585891138687674444967491587728436070165413179119429176089191711"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "263375034703255231899285142378788840973"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "241900446638853854583962042384953835759"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/jinja2@3.1.6?package-id=b1f295692851c3fb",
+      "type": "library",
+      "name": "jinja2",
+      "version": "3.1.6",
+      "cpe": "cpe:2.3:a:python-jinja2:python-jinja2:3.1.6:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/jinja2@3.1.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-jinja2:python_jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_jinja2:python-jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_jinja2:python_jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:jinja2:python-jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:jinja2:python_jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-jinja2:jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_jinja2:jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:jinja2:jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:jinja2:3.1.6:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "474473467445046846154851336950329668450244076337844760956970166473666722843"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "1619895651322837805316458851712527702"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "290447346289320678912189651130017803629"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/markupsafe@3.0.3?package-id=b6788f75649778d2",
+      "type": "library",
+      "name": "markupsafe",
+      "version": "3.0.3",
+      "cpe": "cpe:2.3:a:python-markupsafe:python-markupsafe:3.0.3:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/markupsafe@3.0.3",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-markupsafe:python_markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_markupsafe:python-markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_markupsafe:python_markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:markupsafe:python-markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:markupsafe:python_markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-markupsafe:markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_markupsafe:markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:markupsafe:markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:markupsafe:3.0.3:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "7811194482313099671334276353195084715011434783291356012612356134254310714588"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "4004632020810641731913686659100412995"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "315589750330675100022550717844411929151"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0303439a41979d9e74d18ff5e2dd8c43ed6c6001fd40e5bf2e43f7bd9bbc523f"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/numpy@1.21.0?package-id=7766295262951eed",
+      "type": "library",
+      "name": "numpy",
+      "version": "1.21.0",
+      "cpe": "cpe:2.3:a:python-numpy:python-numpy:1.21.0:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/numpy@1.21.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-numpy:python_numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_numpy:python-numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_numpy:python_numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:numpy:python-numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:numpy:python_numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-numpy:numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_numpy:numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:numpy:numpy:1.21.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "5327742052612783101750762787044924408102833479631758642178100479355346182465"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "35184596947734201726806201630642406380"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "214470346636287091324045656287076440590"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1a784e8ff7ea2a32e393cc53eb0003eca1597c7ca628227e34ce34eb11645a0e"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/requests@2.26.0?package-id=00aca6bc0b889d3a",
+      "type": "library",
+      "name": "requests",
+      "version": "2.26.0",
+      "cpe": "cpe:2.3:a:python:requests:2.26.0:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/requests@2.26.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "7042391308188055512020713260619408196327724824192268908084742648704564869147"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "143651511093814308534225460457605500559"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "20750599776558272281945453766061784356"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6c1246513ecd5ecd4528a0906f910e8f0f9c6b8ec72030dc9fd154dc1a6efd24"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/urllib3@1.26.20?package-id=c57c72ae960645f2",
+      "type": "library",
+      "name": "urllib3",
+      "version": "1.26.20",
+      "cpe": "cpe:2.3:a:python:urllib3:1.26.20:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/urllib3@1.26.20",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "20474185912036275607850082363130642670427535376906934235075970978624365472284"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "19695939906927835765120243464283632027"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "149986621668273763209155122071283499374"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:pypi/werkzeug@3.1.4?package-id=6c91fe718d629271",
+      "type": "library",
+      "name": "werkzeug",
+      "version": "3.1.4",
+      "cpe": "cpe:2.3:a:python-werkzeug:python-werkzeug:3.1.4:*:*:*:*:*:*:*",
+      "purl": "pkg:pypi/werkzeug@3.1.4",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "python-package-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "python"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "python-pip-requirements-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-werkzeug:python_werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_werkzeug:python-werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_werkzeug:python_werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python-werkzeug:werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python_werkzeug:werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:werkzeug:python-werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:werkzeug:python_werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python-werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:python_werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:werkzeug:werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:python:werkzeug:3.1.4:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/requirements.txt"
+        },
+        {
+          "name": "research:zkp:hash:poseidon",
+          "value": "18914449709260155736632221544895947849261291469999652375044338008678826137502"
+        },
+        {
+          "name": "research:zkp:witness:part1",
+          "value": "56933854020548296970955096365726761594"
+        },
+        {
+          "name": "research:zkp:witness:part2",
+          "value": "274525051600092096551533421316092160261"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2ad50fb9ed09cc3af22c54698351027ace879a0b60a3b5edf5730b2f7d876905"
+        }
+      ]
+    },
+    {
+      "bom-ref": "26ca2b7dc025d550",
+      "type": "file",
+      "name": "/Users/yuu/Documents/Projects/ZKP/sbom-groth16/sbom/comp_A/requirements.txt",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "0d09710b8f86f984fd8d76d72e542d0975c3d707"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "053335377f50159bc1fea82c7d30947a0d7156da0272ae0de4ad87d4dbf2373b"
+        }
+      ]
+    }
+  ]
+}
