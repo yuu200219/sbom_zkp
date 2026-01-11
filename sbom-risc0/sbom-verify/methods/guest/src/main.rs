@@ -29,6 +29,8 @@ fn next_pow2(n: usize) -> usize {
 }
 
 pub fn main() {
+    let start = env::cycle_count();
+
     let input: MerkleInput = env::read();
     let leaves = input.all_leaf_hashes;
 
@@ -73,5 +75,7 @@ pub fn main() {
     // 為了匿名性，這邊在確認所有 components 都是 merkle tree member 後，commit Merkle root
     env::commit(&input.root);
 
+    let end = env::cycle_count();
+    eprintln!("Merkle tree verification cycles: {}", end - start);
     // Option: Check white/black list, according to CPE, license, etc.
 }
