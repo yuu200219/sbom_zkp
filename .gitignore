@@ -1,4 +1,6 @@
-sbom-groth16/QBFT-Network/Node-*/data/
+sbom-groth16/QBFT-Network/Node-*/data/database/
+sbom-groth16/QBFT-Network/Node-*/data/caches/
+sbom-groth16/QBFT-Network/Node-*/data/besu.ports
 
 steel/
 
