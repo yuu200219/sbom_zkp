@@ -4,5 +4,6 @@ sbom-groth16/QBFT-Network/Node-*/data/besu.ports
 
 steel/
 
+# 這是 profiling 相關檔案
 sbom-risc0/sbom-verify/profile.pb
 
