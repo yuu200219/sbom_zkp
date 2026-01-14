@@ -1,0 +1,22 @@
+[package]
+name = "guest_code_for_zkp"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+risc0-zkvm = { version = "^3.0.4", default-features = false, features = [
+    'std',
+] }
+
+# 共享的資料結構
+core = { path = "../../core" }
+
+# 序列化工具：必須開啟 "derive" 功能才能處理你的結構體
+serde = { version = "1.0", features = ["derive"] }
+
+# 注意：在 RISC Zero 裡，sha2 會自動調用加速器優化
+sha2 = { version = "0.10", default-features = false }
+
+hex = { version = "0.4", default-features = false }
