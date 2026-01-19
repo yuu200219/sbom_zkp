@@ -1,0 +1,9 @@
+export declare class ResponseWithURL extends Response {
+    /**
+     * @param {string} url
+     * @param {BodyInit} body
+     * @param {ResponseInit} options
+     */
+    constructor(url: string, body: BodyInit, options: ResponseInit);
+}
+//# sourceMappingURL=fetch.rn.d.ts.map

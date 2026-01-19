@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  node-api:
+    build: ./node-api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./node_api:/app
+      - /app/node_modules        # 避免本地 node_modules 覆蓋容器內的
+      - ./node-api/proofs:/app/proofs
+    environment:
+      - RUST_PROVER_URL=http://rust-host:3001
+      - IPFS_RPC_URL=http://ipfs:5001
+    depends_on:
+      - rust-host
+      - ipfs
+  rust-host:
+    build: ./rust-prover-api
+    ports:
+      - "3001:3001"
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: ipfs_node
+    environment:
+      - IPFS_PROFILE=server # 優化伺服器模式，減少不必要的網路掃描
+    volumes:
+      - ./ipfs_staging:/export
+      - ./ipfs_data:/data/ipfs
+    command: >
+      sh -c "
+        chmod 400 /data/ipfs/swarm.key &&
+        if [ ! -f /data/ipfs/config ]; then
+          ipfs init --profile server
+        fi
+        ipfs bootstrap rm --all
+        exec ipfs daemon
+      "
+    ports:
+      - "4001:4001"        # Swarm TCP
+      - "4001:4001/udp"    # Swarm UDP
+      - "127.0.0.1:8080:8080"  # Gateway
+      - "127.0.0.1:5001:5001"  # API
+    restart: always
+
+networks:
+  zkVM-network:
+    external: true
