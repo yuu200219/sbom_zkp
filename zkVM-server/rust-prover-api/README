@@ -1,0 +1,6 @@
+# Getting started with Rust Prover API
+## run rust-prove-api
+```bash
+cargo build -p host
+cargo run -p host --release
+```
