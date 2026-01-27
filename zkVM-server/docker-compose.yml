@@ -6,43 +6,44 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./node_api:/app
-      - /app/node_modules        # 避免本地 node_modules 覆蓋容器內的
+      - ./node-api:/app           # 修正：請確認路徑是 ./node-api (剛才你寫 ./node_api)
+      - /app/node_modules
       - ./node-api/proofs:/app/proofs
     environment:
-      - RUST_PROVER_URL=http://rust-host:3001
+      # 重點 1：指向 Mac 主機的 IP
+      - RUST_PROVER_URL=http://host.docker.internal:3001
       - IPFS_RPC_URL=http://ipfs:5001
+    # 重點 2：讓容器認得 host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - rust-host
       - ipfs
-  rust-host:
-    build: ./rust-prover-api
-    ports:
-      - "3001:3001"
+
   ipfs:
     image: ipfs/kubo:latest
     container_name: ipfs_node
     environment:
-      - IPFS_PROFILE=server # 優化伺服器模式，減少不必要的網路掃描
+      - IPFS_PROFILE=server
+      - LIBP2P_FORCE_PNET=1              # 強制開啟私有網路模式
     volumes:
-      - ./ipfs_staging:/export
-      - ./ipfs_data:/data/ipfs
-    command: >
-      sh -c "
-        chmod 400 /data/ipfs/swarm.key &&
+      - ./ipfs/ipfs_staging:/export
+      - ./ipfs/ipfs_data:/data/ipfs
+      - ./ipfs/ipfs_data/swarm.key:/data/ipfs/swarm.key # 重要：掛載私鑰
+    # 簡化 Command，確保啟動穩定
+    entrypoint: >
+      /bin/sh -c "
         if [ ! -f /data/ipfs/config ]; then
           ipfs init --profile server
         fi
+        ipfs config --json AutoConf.Enabled false
         ipfs bootstrap rm --all
-        exec ipfs daemon
+        exec /sbin/tini -- /usr/local/bin/start_ipfs daemon --migrate=true
       "
     ports:
-      - "4001:4001"        # Swarm TCP
-      - "4001:4001/udp"    # Swarm UDP
-      - "127.0.0.1:8080:8080"  # Gateway
-      - "127.0.0.1:5001:5001"  # API
+      - "4001:4001"
+      - "4001:4001/udp"
+      - "8080:8080"
+      - "5001:5001"
     restart: always
 
-networks:
-  zkVM-network:
-    external: true
+# 建議移除外部網路，讓 Compose 自動處理預設網路
