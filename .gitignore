@@ -7,5 +7,7 @@ steel/
 # 這是 profiling 相關檔案
 sbom-risc0/sbom-verify/profile.pb
 
+zkVM-server/node-api/node_modules
+zkVM-server/package-lock.json
 zkVM-server/node-api/proofs/
 zkVM-server/ipfs/ipfs_data/
