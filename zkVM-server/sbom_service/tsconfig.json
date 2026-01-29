@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    
+    // 保持嚴謹度，這對 Merkle Tree 計算很重要
+    "strict": true,
+    "noUncheckedIndexedAccess": true, // 處理 Array[i] 時會強制檢查 undefined
+    "verbatimModuleSyntax": true,      // 確保 import/export 行為與 ESM 一致
+    "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "declaration": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
