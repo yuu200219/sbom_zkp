@@ -1,0 +1,18 @@
+[project]
+name = "flask-server"
+version = "2.0.1"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+requires-python = ">=3.14"
+dependencies = [
+    "flask (==2.0.1)",
+    "requests (==2.26.0)",
+    "numpy (>=2.4.4,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

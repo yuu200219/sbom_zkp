@@ -55,7 +55,7 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
 // --- 測試區 ---
 
 // 測試案例 A: Python 需求檔
-const pythonManifest = '../../../sbom-risc0/sbom/flask_server/flask_server_sbom_enriched.json';
+const pythonManifest = '../../../sbom-risc0/sbom/flask_server/poetry.lock';
 const nodeLockfile = '../package-lock.json';
 testGenerateAndProve(pythonManifest, "python-app-v1");
 // testGenerateAndProve(nodeLockfile, "node-app-v1");
