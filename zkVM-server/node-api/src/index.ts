@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import type { SbomServiceResponse,  ProverResponse} from '../../shared/types.js';
+import type { SbomServiceResponse,  ProverResponse} from './types.js';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import multer from 'multer';
@@ -34,75 +34,91 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
     try {
         console.log(`[Node] 1. 正在轉發檔案至 SBOM Service: ${file.originalname}`);
 
-        // --- 1. 轉發檔案給 sbom-gen-service ---
+        // --- 1. 轉發檔案給 sbom-service ---
         const form = new FormData();
         form.append('file', fs.createReadStream(file.path), file.originalname);
 
-        const sbomRes = await axios.post<SbomServiceResponse>(`${SBOM_SERVICE_URL}/generate`, form, {
+        const sbomRes = await axios.post<any>(`${SBOM_SERVICE_URL}/generate`, form, {
             headers: { ...form.getHeaders() }
         });
-        const { merkleRoot, components } = sbomRes.data;
-        console.log(`[Node] SBOM 生成成功, Merkle Root: ${merkleRoot}`);
+        const { 
+            merkleRoot, 
+            sortedComponents = [],           // 這是 sbom_service 給的原始 Key
+            totalDurationMs = 0,             // 這是 sbom_service 給的原始 Key
+            merkleDot = '',
+            dependencyDot = '',
+        } = sbomRes.data;
+
+        const sbomData: SbomServiceResponse = {
+            merkleRoot: merkleRoot,
+            components: sortedComponents,    // 將原始陣列映射到 components 欄位
+            sbomServiceTotalDurationMs: totalDurationMs,
+            merkleDot: merkleDot,
+            dependencyDot: dependencyDot,
+        };
+        console.log(`[Node] SBOM 生成成功, Merkle Root: ${merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
 
         console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
         console.log(`[Node] 正在為 ${artifactId} 請求零知識證明...`);
 
         // 1. 呼叫遠端 Axum Host (Rust)
-        const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
-            artifactId,
-            treeData: components
-        });
-
-        const { proof, journal } = response.data;
-        console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
-
-        // 2. 這裡可以同步或非同步執行上鏈交易
-        // await submitToBlockchain(artifactId, proof);
-        // 3. 自動將 Proof 存檔 (實驗留底)
-        const storagePath = path.join(process.cwd(), 'proofs');
-        if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
-
-        const fileName = `proof-${artifactId}-${Date.now()}.json`;
-        const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
-        fs.writeFileSync(path.join(storagePath, fileName), fileContent);
-        
-        console.log(`💾 Proof 已存檔至: proofs/${fileName}`);
-        // res.status(200).json({
-        //     success: true,
-        //     proof,
-        //     savedAs: fileName,
-        //     journal
+        // const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
+        //     artifactId,
+        //     treeData: sbomData
         // });
 
+        // const { proof, journal } = response.data;
+        console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
+
+
+        // 3. 自動將 Proof 存檔 (實驗留底)
+        // const storagePath = path.join(process.cwd(), 'proofs');
+        // if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
+
+        // const fileName = `proof-${artifactId}-${Date.now()}.json`;
+        // const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
+        // fs.writeFileSync(path.join(storagePath, fileName), fileContent);
+        
+        // console.log(`💾 Proof 已存檔至: proofs/${fileName}`);
+
         // 連接到 ipfs 並將 proof 上傳到 ipfs
-        let ipfsHash = "";
-        try {
-            // --- 上傳到 IPFS ---
-            const { cid } = await ipfs.add(fileContent);
-            ipfsHash = cid.toString();
+        // let ipfsHash = "";
+        // const ipfsStart = performance.now();
+        // try {
+        //     // --- 上傳到 IPFS ---
+        //     const { cid } = await ipfs.add(fileContent);
+        //     ipfsHash = cid.toString();
             
-            console.log(`🚀 Proof 已上傳至 IPFS, CID: ${ipfsHash}`);
+        //     console.log(`🚀 Proof 已上傳至 IPFS, CID: ${ipfsHash}`);
             
-            // res.status(200).json({
-            //     success: true,
-            //     ipfsUrl: `https://ipfs.io/ipfs/${ipfsHash}`,
-            //     cid: ipfsHash,
-            //     proof
-            // });
-        } catch (ipfsError) {
-            console.error('IPFS 上傳失敗:', ipfsError);
-            res.status(500).json({ error: 'IPFS 上傳失敗' });
-        }
+        //     // res.status(200).json({
+        //     //     success: true,
+        //     //     ipfsUrl: `https://ipfs.io/ipfs/${ipfsHash}`,
+        //     //     cid: ipfsHash,
+        //     //     proof
+        //     // });
+        // } catch (ipfsError) {
+        //     console.error('IPFS 上傳失敗:', ipfsError);
+        //     res.status(500).json({ error: 'IPFS 上傳失敗' });
+        // }
+        // const ipfsTime = performance.now() - ipfsStart;
 
         res.status(200).json({
             success: true,
-            proof,
-            journal,
-            savedAs: fileName,
-            ipfs: ipfsHash ? {
-                cid: ipfsHash,
-                url: `https://ipfs.io/ipfs/${ipfsHash}`
-            } : 'failed'
+            // proof,
+            // journal,
+            merkleRoot,
+            componentsAnalyzed: sbomData.components.length,
+            time: {
+                'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
+                // 'proveDurationMs': response.data.proveDurationMs,
+                // 'ipfsUploadMs': ipfsTime,
+                'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs // + response.data.proveDurationMs + ipfsTime
+            },
+            // ipfs: ipfsHash ? {
+            //     cid: ipfsHash,
+            //     url: `https://ipfs.io/ipfs/${ipfsHash}`
+            // } : 'failed'
         });
 
         
@@ -131,7 +147,7 @@ app.post('/api/prove', async (req: Request, res: Response) => {
             treeData: treeData
         });
 
-
+        const merkleRoot = treeData.merkleRoot;
 
         const { proof, journal } = response.data;
         console.timeEnd(`Proving-${artifactId}`); // 實驗數據埋點：結束計時
@@ -168,7 +184,12 @@ app.post('/api/prove', async (req: Request, res: Response) => {
                 success: true,
                 proof,
                 journal,
+                merkleRoot,
                 savedAs: fileName,
+                time: {
+                    'proveDurationMs': response.data.proveDurationMs,
+                    'totalProcessTimeMs': response.data.proveDurationMs // 現在只有 proveDurationMs，可擴充
+                },
                 ipfs: ipfsHash ? {
                 cid: ipfsHash,
                 url: `https://ipfs.io/ipfs/${ipfsHash}`

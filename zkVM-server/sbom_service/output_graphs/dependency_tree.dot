@@ -1,0 +1,9 @@
+digraph DependencyTree {
+    node [fontname="Arial", fontsize=10, shape=record];
+    rankdir=LR;
+    "17d6ab7f9bd819f2" [label="{ requirements_a.txt | sha256:0579374de61db5e7d85840dda52fc322e95c47cfbef3abcd7ce9cd54ade3c430 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/flask@2.0.1?package-id=d47283f7000a03b7" [label="{ flask | 2.0.1 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/numpy@1.21.0?package-id=b1bcfb97c67dcfa0" [label="{ numpy | 1.21.0 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/requests@2.26.0?package-id=7080586894ef4f14" [label="{ requests | 2.26.0 }", style=filled, fillcolor="#e1f5fe"];
+    "cf036070e1412d06" [label="{ /app/uploads/requirements_a.txt | undefined }", style=filled, fillcolor="#e1f5fe"];
+}

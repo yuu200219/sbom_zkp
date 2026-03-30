@@ -10,8 +10,6 @@
     "strict": true,
     "noUncheckedIndexedAccess": true, // 處理 Array[i] 時會強制檢查 undefined
     "verbatimModuleSyntax": true,      // 確保 import/export 行為與 ESM 一致
-    "emitDeclarationOnly": true,
-    "allowImportingTsExtensions": true,
 
     "esModuleInterop": true,
     "skipLibCheck": true,

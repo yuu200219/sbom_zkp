@@ -60,10 +60,6 @@ pub fn main() {
 
     let calculated_root = current_level[0];
 
-    // if calculated_root != input.root {
-    //     println!("期望的 Root: {}", hex::encode(input.root));
-    //     println!("算出的 Root: {}", hex::encode(calculated_root));
-    // }
     // 驗證計算出的 Root 是否等於宣稱的 Root
     assert_eq!(
         calculated_root, input.root,

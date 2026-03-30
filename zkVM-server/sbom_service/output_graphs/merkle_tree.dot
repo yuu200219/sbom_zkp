@@ -1,0 +1,17 @@
+digraph MerkleTree {
+    node [fontname="Arial", fontsize=10];
+    rankdir=BT;
+    "L0_0" [label="flask\n2.0.1\n831525...06bf", shape=box, style=filled, fillcolor="#e6f3ff", color="#0066cc"];
+    "L0_1" [label="numpy\n1.21.0\nce2aa6...3d22", shape=box, style=filled, fillcolor="#e6f3ff", color="#0066cc"];
+    "L0_2" [label="requests\n2.26.0\nb40930...0cab", shape=box, style=filled, fillcolor="#e6f3ff", color="#0066cc"];
+    "L0_3" [label="Padding\n000000...0000", shape=box, style="dashed,filled", fillcolor="#f0f0f0", fontcolor="#999999"];
+    "L1_0" [label="56acfa...8746", shape=box, style=filled, fillcolor="#ffffff", color="#666666"];
+    "L0_0" -> "L1_0";
+    "L0_1" -> "L1_0";
+    "L1_1" [label="a17c16...7af5", shape=box, style=filled, fillcolor="#ffffff", color="#666666"];
+    "L0_2" -> "L1_1";
+    "L0_3" -> "L1_1";
+    "L2_0" [label="ROOT\n1cf929...c7da", shape=diamond, style=filled, fillcolor="#fff3e6", color="#ff9900", penwidth=2];
+    "L1_0" -> "L2_0";
+    "L1_1" -> "L2_0";
+}

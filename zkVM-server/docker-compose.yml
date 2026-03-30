@@ -2,23 +2,39 @@ version: '3.8'
 
 services:
   node-api:
-    build: ./node-api
+    build:
+      context: .
+      dockerfile: node-api/Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - ./node-api:/app           # 修正：請確認路徑是 ./node-api (剛才你寫 ./node_api)
+      - ./node-api:/app/          # 修正：請確認路徑是 ./node-api (剛才你寫 ./node_api)
       - /app/node_modules
+      - /app/dist
       - ./node-api/proofs:/app/proofs
     environment:
       # 重點 1：指向 Mac 主機的 IP
       - RUST_PROVER_URL=http://host.docker.internal:3001
+      - SBOM_SERVICE_URL=http://sbom-service:3002
       - IPFS_RPC_URL=http://ipfs:5001
     # 重點 2：讓容器認得 host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - ipfs
-
+    # depends_on:
+    #   - ipfs
+  sbom-service:
+    build: 
+      context: .
+      dockerfile: sbom_service/Dockerfile
+    volumes:
+      - ./sbom_service:/app
+      - /app/node_modules
+      - /app/dist
+      - ./sbom_service/uploads:/app/uploads      # 掛載 uploads 以便觀察臨時檔案
+    environment:
+      - PORT=3002
+      - NODE_ENV=development
+    restart: always
   ipfs:
     image: ipfs/kubo:latest
     container_name: ipfs_node
