@@ -114,6 +114,18 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         const rawSbom = JSON.parse(stdout);
         if (!rawSbom.components) rawSbom.components = []; 
 
+        // 處理 SBOM，餵所有的套件補齊唯一 Hash
+        rawSbom.components.forEach((c: any) => {
+            // 檢查 Syft 是否有算出官方 Hash
+            if (c.hashes && c.hashes.length > 0) {
+                c.hash = c.hashes[0].content; // 使用官方 SHA-256
+            } else {
+                // 若沒有 Hash，沿用你之前的邏輯，生成一個強關聯的防篡改 Hash
+                const fallbackContent = `${c.name}@${c.version}${c.purl || ''}`; // hash(name | version | purl)
+                c.hash = crypto.createHash('sha256').update(fallbackContent).digest('hex');
+            }
+        });
+
         console.log(`[Debug] 執行 Grype 漏洞掃描...`);
         fs.writeFileSync(tempSbomPath, stdout); // 將 Syft 結果寫入暫存檔
 
