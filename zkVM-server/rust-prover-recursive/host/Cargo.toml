@@ -9,7 +9,7 @@ risc0-zkvm = { version = "^3.0.4" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # 共享的資料結構
-core = { path = "../core" }
+shared_data = { path = "../shared_data" }
 
 # 序列化工具：必須開啟 "derive" 功能才能處理你的結構體
 serde = { version = "1.0", features = ["derive"] }
@@ -22,3 +22,5 @@ axum = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 bincode = "1.3"
 tracing = "0.1"
+ipfs-api-backend-hyper = "0.6"
+bytes = "1.0"

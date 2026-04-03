@@ -11,3 +11,5 @@ zkVM-server/node-api/node_modules
 zkVM-server/sbom_service/node_modules
 zkVM-server/node-api/proofs/
 zkVM-server/ipfs/ipfs_data/
+
+zk-verifier/target/

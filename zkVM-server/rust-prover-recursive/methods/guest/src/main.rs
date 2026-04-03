@@ -1,22 +1,30 @@
-// methods/guest/src/main.rs
 #![no_main]
-use risc0_zkvm::guest::env; // 引入剛才的結構
-                            // use risc0_zkvm::sha::{Impl, Sha256};
+use risc0_zkvm::guest::env;
+use sha2::{Digest, Sha256};
+use shared_data::{ComponentInput, MerkleInput};
+
 risc0_zkvm::guest::entry!(main);
 
-const LICENSE_WHITELIST: &[&str] = &["MIT", "Apache-2.0", "BSD-3-Clause", "BSD-2-Clause", "ISC", ];
-
-use core::MerkleInput;
-
-use sha2::{Digest, Sha256};
+const LICENSE_WHITELIST: &[&str] = &[
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "ISC",
+    "Unlicense",
+    "CC0-1.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "MPL-2.0",
+    "EPL-2.0",
+];
 
 fn sha256_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut h = Sha256::new();
     h.update(left);
     h.update(right);
-    let out = h.finalize();
     let mut arr = [0u8; 32];
-    arr.copy_from_slice(&out);
+    arr.copy_from_slice(&h.finalize());
     arr
 }
 
@@ -34,63 +42,83 @@ fn next_pow2(n: usize) -> usize {
 pub fn main() {
     let start = env::cycle_count();
 
-    let input: MerkleInput = env::read();
-    let leaves = input.all_leaf_hashes.clone();
+    // 1. 讀取組件本身的資料
+    let comp_input: ComponentInput = env::read();
 
-    for proven_comp in input.assumptions.iter() {
-        // 核心邏輯：驗證這個 ImageID 確實產生了這段 Journal
-        // 只要這行不 panic，就代表底層的 ZK 證明是有效的
-        env::verify(proven_comp.image_id, &proven_comp.journal)
-            .expect("Assumption verification failed!");
+    // 2. 讀取驗證金鑰 (Image ID)
+    let my_image_id: [u32; 8] = env::read();
 
-        // 【重點安全檢查】：你需要確保這個被驗證的 Component，
-        // 確實存在於你當前的 Merkle leaves 中。
-        // 假設 sub-component 的 journal 就是它的 Root Hash ([u8; 32])
-        let comp_hash: [u8; 32] = proven_comp.journal.as_slice().try_into().unwrap();
-        assert!(
-            leaves.contains(&comp_hash),
-            "Proven component is not part of the current SBOM tree!"
-        );
+    // ==========================================
+    // 驗證 1：遞歸驗證所有的子依賴
+    // ==========================================
+    for dep_hash in comp_input.dependency_hashes.iter() {
+        // 要求 Host 提供子節點的 Receipt，且其 Journal 必須正好是 dep_hash 的純位元組
+        env::verify(my_image_id, dep_hash)
+            .expect("Dependency verification failed! Child component missing or altered.");
     }
 
-    let mut current_level: Vec<[u8; 32]> = input.all_leaf_hashes;
+    // ==========================================
+    // 驗證 2：驗證套件安全性
+    // ==========================================
+    let mut is_safe = false;
+    if comp_input.severity == "Unknown" || comp_input.severity == "Low" {
+        is_safe = true;
+    }
+    assert!(
+        is_safe,
+        "Component {} has unapproved vulnerability severity: {}",
+        comp_input.name, comp_input.severity
+    );
 
+    // ==========================================
+    // 驗證 3：驗證套件本身的授權條款
+    // ==========================================
+    // let mut is_legal = false;
+    // for &allowed_license in LICENSE_WHITELIST {
+    //     if comp_input.license.contains(allowed_license) {
+    //         is_legal = true;
+    //         break;
+    //     }
+    // }
+    // assert!(
+    //     is_legal,
+    //     "Unapproved license in component: {}",
+    //     comp_input.name
+    // );
+
+    // ==========================================
+    // 驗證 4：檢查完整性 (Hash) 是否在 Merkle Tree 中
+    // ==========================================
+    let merkle_input: MerkleInput = env::read();
+
+    let mut current_level = merkle_input.all_leaf_hashes;
     let real_leaf_count = current_level.len();
     let target = next_pow2(real_leaf_count);
 
     if target != real_leaf_count {
-        // padding 用 32 bytes 0，跟你 JS 的 PADDING_VALUE（64 個 '0'）一致
         while current_level.len() < target {
             current_level.push([0u8; 32]);
         }
     }
 
-    // Check Root Hash Value
     while current_level.len() > 1 {
         let mut next_level: Vec<[u8; 32]> = Vec::new();
         for pair in current_level.chunks_exact(2) {
-            let left = &pair[0];
-            let right = &pair[1];
-            next_level.push(sha256_pair(left, right));
+            next_level.push(sha256_pair(&pair[0], &pair[1]));
         }
         current_level = next_level;
-        // println!("Layer {} 完成，節點數: {}", depth, current_level.len());
     }
 
-    let calculated_root = current_level[0];
-
-    // 驗證計算出的 Root 是否等於宣稱的 Root
     assert_eq!(
-        calculated_root, input.root,
+        current_level[0], merkle_input.root,
         "Merkle root integrity verification failed!"
     );
 
-    // 只要沒 panic，就代表驗證成功，把 Leaf Commit 到 Journal 證明它存在於這棵樹
-    // env::commit(&input.leaf);
-    // 為了匿名性，這邊在確認所有 components 都是 merkle tree member 後，commit Merkle root
-    env::commit(&input.root);
+    // ==========================================
+    // 5. 檢查完畢，將自己的 Hash 作為純位元組寫入 Journal
+    // ==========================================
+    env::commit_slice(&comp_input.hash);
 
     let end = env::cycle_count();
-    eprintln!("Merkle tree verification cycles: {}", end - start);
-    // Option: Check white/black list, according to CPE, license, etc.
+    eprintln!("Component proven in cycles: {}", end - start);
 }

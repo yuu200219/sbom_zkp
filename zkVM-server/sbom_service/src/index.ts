@@ -109,9 +109,11 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         console.log(`\n[SBOM Service] 正在處理 ${file.originalname}...`);
 
         // 1. 執行 Syft & 進行 grype 漏洞掃描
+        console.log(`[Debug] 執行 syft 生成 SBOM...`);
         const command = `syft ${file.path} -o cyclonedx-json`;
         const stdout = execSync(command, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], shell: '/bin/bash' });
         const rawSbom = JSON.parse(stdout);
+        console.log(`[Debug] syft 完成生成 SBOM`);
         if (!rawSbom.components) rawSbom.components = []; 
 
         // 處理 SBOM，餵所有的套件補齊唯一 Hash
@@ -162,7 +164,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         console.log(`[Debug] 拓撲排序完成，共 ${sortedComponents.length} 個有效節點待處理。`);
         // 將 Grype 的漏洞資訊整合到 sortedComponents 中
         sortedComponents.forEach((c: any) => {
-            c.severity = severityMap.get(c.name) || "Safe";
+            c.severity = severityMap.get(c.name) || "Unknown";
         });
 
         // 4. 準備 Merkle Tree 以確保「專案完整性」不被竄改
@@ -184,7 +186,6 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         try {
             if (!fs.existsSync(outputDir)) {
                 fs.mkdirSync(outputDir, { recursive: true });
-                // console.log(`[IO] 建立資料夾: ${outputDir}`);
             }
 
             // 寫入 Merkle Tree
@@ -218,7 +219,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
     } finally {
         // 清理暫存檔案
         try {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            // if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
             if (fs.existsSync(tempSbomPath)) fs.unlinkSync(tempSbomPath);
         } catch (cleanupErr) {
             console.error('[Warn] 暫存檔清理失敗:', cleanupErr);

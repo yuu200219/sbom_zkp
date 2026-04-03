@@ -13,6 +13,8 @@ export interface SbomComponent {
     hash: string;
     type: string;
     purl: string;
+    license: string;
+    severity: string;
 }
 
 export interface DependencyNode {
@@ -129,7 +131,7 @@ export class SbomProcessor {
             }
 
             const validComp: SbomComponent = {
-                bomRef, name: comp.name, version: comp.version || "unknown", hash: targetHash, type, purl
+                bomRef, name: comp.name, version: comp.version || "unknown", hash: targetHash, type, purl, license: comp.license || "unknown", severity: comp.severity || "Unknown"
             };
             componentMap.set(bomRef, validComp);
             validBomRefs.add(bomRef);

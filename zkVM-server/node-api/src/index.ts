@@ -62,24 +62,24 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         console.log(`[Node] 正在為 ${artifactId} 請求零知識證明...`);
 
         // 1. 呼叫遠端 Axum Host (Rust)
-        // const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
-        //     artifactId,
-        //     treeData: sbomData
-        // });
+        const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
+            artifactId,
+            treeData: sbomData
+        });
 
-        // const { proof, journal } = response.data;
+        const { proof, journal } = response.data;
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 
         // 3. 自動將 Proof 存檔 (實驗留底)
-        // const storagePath = path.join(process.cwd(), 'proofs');
-        // if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
+        const storagePath = path.join(process.cwd(), 'proofs');
+        if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
 
-        // const fileName = `proof-${artifactId}-${Date.now()}.json`;
-        // const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
-        // fs.writeFileSync(path.join(storagePath, fileName), fileContent);
+        const fileName = `proof-${artifactId}-${Date.now()}.json`;
+        const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
+        fs.writeFileSync(path.join(storagePath, fileName), fileContent);
         
-        // console.log(`💾 Proof 已存檔至: proofs/${fileName}`);
+        console.log(`[Node] Proof 已存檔至: proofs/${fileName}`);
 
         // 連接到 ipfs 並將 proof 上傳到 ipfs
         // let ipfsHash = "";
@@ -105,13 +105,13 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
 
         res.status(200).json({
             success: true,
-            // proof,
-            // journal,
+            proof,
+            journal,
             merkleRoot,
             componentsAnalyzed: sbomData.components.length,
             time: {
                 'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
-                // 'proveDurationMs': response.data.proveDurationMs,
+                'proveDurationMs': response.data.proveDurationMs,
                 // 'ipfsUploadMs': ipfsTime,
                 'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs // + response.data.proveDurationMs + ipfsTime
             },

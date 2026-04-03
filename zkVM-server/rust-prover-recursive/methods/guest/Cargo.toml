@@ -11,9 +11,8 @@ risc0-zkvm = { version = "^3.0.4", default-features = false, features = [
 ] }
 
 # 共享的資料結構
-core = { path = "../../core" }
+shared_data = { path = "../../shared_data" }
 
-# 序列化工具：必須開啟 "derive" 功能才能處理你的結構體
 serde = { version = "1.0", features = ["derive"] }
 
 # 注意：在 RISC Zero 裡，sha2 會自動調用加速器優化
