@@ -7,6 +7,9 @@ use serde_json::Value;
 use std::net::SocketAddr;
 use std::time::Instant;
 use std::collections::HashMap;
+use ipfs_api::IpfsClient;
+use std::io::Cursor;
+use futures::TryStreamExt;
 
 // --- 與 Node.js 對接的請求格式 ---
 #[derive(Deserialize)]
@@ -25,6 +28,33 @@ struct ProveResponse {
     journal: String, // Hex 編碼的 Journal (用於快速驗證)
     #[serde(rename = "proveDurationMs")] // 讓 Rust 欄位對應到 Node 的 JSON 鍵名
     prove_duration_ms: u128,
+    #[serde(rename = "rootCid")]
+    root_cid: Option<String>, // 根節點的 IPFS CID
+}
+
+#[derive(Clone)]
+struct IpfsRegistry {
+    map: HashMap<String, String>, // comp_hash -> cid
+}
+
+impl IpfsRegistry {
+    fn new() -> Self {
+        Self { map: HashMap::new() }        
+    }
+
+    fn lookup(&self, key: &str) -> Option<&String> {
+        self.map.get(key)
+    }
+
+    fn register(&mut self, key: String, cid: String) {
+        self.map.insert(key, cid);
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct StoredProof {
+    receipt: Receipt,
+    image_id: [u32; 8],
 }
 
 // 輔助函式：Hex 轉換邏輯保持不變
@@ -46,6 +76,9 @@ async fn handle_prove(
     println!("✅ 開始處理遞歸證明任務: {}", payload.artifact_id);
     let start_calc = Instant::now();
     let tree_data = payload.tree_data;
+
+    let mut ipfs_registry = IpfsRegistry::new();
+    let ipfs_client = IpfsClient::default();
 
     let components = match tree_data["components"].as_array() {
         Some(c) => c,
@@ -75,6 +108,7 @@ async fn handle_prove(
     // Key: 套件的 Hash (Hex字串), Value: RISC Zero Receipt
     let mut receipt_cache: HashMap<String, Receipt> = HashMap::new();
     let mut final_receipt: Option<Receipt> = None;
+    let mut root_cid: Option<String> = None;
 
     // 3. 依序遍歷 Node.js 傳來的拓撲排序陣列 (由葉子節點到根節點)
     println!("[-] 開始處理套件證明，總套件數: {}", components.len());
@@ -84,71 +118,114 @@ async fn handle_prove(
         let comp_hash_str = comp["hash"].as_str().unwrap();
         let comp_hash = decode_hex_32(comp_hash_str);
         
-        // 解析這個套件的子依賴 Hash 陣列
-        let mut dependency_hashes = Vec::new();
-        if let Some(deps) = comp["dependencies"].as_array() {   
-            for dep in deps {
-                if let Some(dep_hash_str) = dep.as_str() {
-                    dependency_hashes.push(decode_hex_32(dep_hash_str));
+        if let Some(cached_cid) = ipfs_registry.lookup(comp_hash_str) {
+            // Download and verify from IPFS
+            let receipt_stream = ipfs_client.cat(cached_cid);
+            let receipt_data: Vec<u8> = match receipt_stream.try_collect().await {
+                Ok(data) => data,
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS cat error: {}", e)).into_response(),
+            };
+            let stored_proof: StoredProof = match bincode::deserialize(&receipt_data) {
+                Ok(sp) => sp,
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Deserialize error: {}", e)).into_response(),
+            };
+            if let Err(e) = stored_proof.receipt.verify(&stored_proof.image_id) {
+                return (StatusCode::INTERNAL_SERVER_ERROR, format!("Verify error: {}", e)).into_response();
+            }
+            receipt_cache.insert(comp_hash_str.to_string(), stored_proof.receipt.clone());
+            final_receipt = Some(stored_proof.receipt);
+            root_cid = Some(cached_cid.to_string());
+            println!("[-] {} 從 IPFS 驗證完成", comp_name);
+            continue; // 這個套件已經驗證過了，直接跳到下一個套件
+        } else {
+            // 解析這個套件的子依賴 Hash 陣列
+            let mut dependency_hashes = Vec::new();
+            if let Some(deps) = comp["dependencies"].as_array() {   
+                for dep in deps {
+                    if let Some(dep_hash_str) = dep.as_str() {
+                        dependency_hashes.push(decode_hex_32(dep_hash_str));
+                    }
                 }
             }
-        }
 
-        let comp_input = ComponentInput {
-            name: comp_name.clone(),
-            version: comp["version"].as_str().unwrap_or("").to_string(),
-            hash: comp_hash,
-            license: comp["license"].as_str().unwrap_or("").to_string(),
-            severity: comp["severity"].as_str().unwrap_or("").to_string(),
-            dependency_hashes: dependency_hashes.clone(),
-        };
+            let comp_input = ComponentInput {
+                name: comp_name.clone(),
+                version: comp["version"].as_str().unwrap_or("").to_string(),
+                hash: comp_hash,
+                license: comp["license"].as_str().unwrap_or("").to_string(),
+                severity: comp["severity"].as_str().unwrap_or("").to_string(),
+                dependency_hashes: dependency_hashes.clone(),
+            };
 
-        println!("[-] 正在證明套件: {}", comp_name);
+            println!("[-] 正在證明套件: {}", comp_name);
 
-        // 【關鍵核心】：將子依賴的 Receipt 註冊為 Assumption
-        let mut assumptions_to_add = Vec::new();
-        for dep_hash in &comp_input.dependency_hashes {
-            let dep_hex = hex::encode(dep_hash);
-            if let Some(child_receipt) = receipt_cache.get(&dep_hex) {
-                // 將已經算好的 Receipt 加入環境，這樣 Guest 的 env::verify 才會通過
-                assumptions_to_add.push(child_receipt.clone());
-            } else {
-                return (StatusCode::BAD_REQUEST, format!("Missing receipt for dependency {}", dep_hex)).into_response();
-            }
-        }
 
-        let comp_input_clone = comp_input.clone();
-        let merkle_input_clone = my_merkle_input.clone();
-        // 5. 執行證明 (由於在迴圈內，這裡使用 blocking 等待)
-        let receipt = match tokio::task::spawn_blocking(move || {
-            let mut env_builder = ExecutorEnv::builder();
-
-            // 寫入 Assumption (子節點的收據)
-            for child_receipt in assumptions_to_add {
-                env_builder.add_assumption(child_receipt);
+            // 【關鍵核心】：將子依賴的 Receipt 註冊為 Assumption
+            let mut assumptions_to_add = Vec::new();
+            for dep_hash in &comp_input.dependency_hashes {
+                let dep_hex = hex::encode(dep_hash);
+                if let Some(child_receipt) = receipt_cache.get(&dep_hex) {
+                    // 將已經算好的 Receipt 加入環境，這樣 Guest 的 env::verify 才會通過
+                    // env_builder.add_assumption(child_receipt.clone());
+                    assumptions_to_add.push(child_receipt.clone());
+                } else {
+                    return (StatusCode::BAD_REQUEST, format!("Missing receipt for dependency {}", dep_hex)).into_response();
+                }
             }
 
-            // 寫入 Guest 需要的三大變數
-            env_builder.write(&comp_input_clone).unwrap();
-            env_builder.write(&GUEST_CODE_FOR_ZKP_ID).unwrap();
-            env_builder.write(&merkle_input_clone).unwrap(); 
+            let comp_input_clone = comp_input.clone();
+            let merkle_input_clone = my_merkle_input.clone();
+            // 5. 執行證明 (由於在迴圈內，這裡使用 blocking 等待)
+            let receipt = match tokio::task::spawn_blocking(move || {
+                let mut env_builder = ExecutorEnv::builder();
 
-            let env = env_builder.build().unwrap();
+                // 寫入 Assumption (子節點的收據)
+                for child_receipt in assumptions_to_add {
+                    env_builder.add_assumption(child_receipt);
+                }
 
-            let prover = default_prover();
-            prover.prove(env, GUEST_CODE_FOR_ZKP_ELF).map(|res| res.receipt)
-        }).await {
-            Ok(Ok(r)) => r,
-            Ok(Err(e)) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Prover error: {}", e)).into_response(),
-            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)).into_response(),
-        };
+                // 寫入 Guest 需要的三大變數
+                env_builder.write(&comp_input_clone).unwrap();
+                env_builder.write(&GUEST_CODE_FOR_ZKP_ID).unwrap();
+                env_builder.write(&merkle_input_clone).unwrap(); 
 
-        // 6. 將算出來的 Receipt 存入 Cache，供未來的父節點使用
-        receipt_cache.insert(comp_hash_str.to_string(), receipt.clone());
-        
-        // 不斷覆寫 final_receipt，迴圈結束時它就會是整棵樹最頂層 (Root) 的收據
-        final_receipt = Some(receipt);
-        println!("[-] {} 證明完成", comp_name);
+                let env = env_builder.build().unwrap();
+
+                let prover = default_prover();
+                prover.prove(env, GUEST_CODE_FOR_ZKP_ELF).map(|res| res.receipt)
+            }).await {
+                Ok(Ok(r)) => r,
+                Ok(Err(e)) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Prover error: {}", e)).into_response(),
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)).into_response(),
+            };
+
+            // 6. 將算出來的 Receipt 存入 Cache，供未來的父節點使用
+            receipt_cache.insert(comp_hash_str.to_string(), receipt.clone());
+            
+            // 不斷覆寫 final_receipt，迴圈結束時它就會是整棵樹最頂層 (Root) 的收據
+            final_receipt = Some(receipt.clone());
+            root_cid = Some(cid.clone());
+            
+            // 上傳到 IPFS
+            let stored_proof = StoredProof {
+                receipt: receipt.clone(),
+                image_id: GUEST_CODE_FOR_ZKP_ID,
+            };
+            let receipt_data = match bincode::serialize(&stored_proof) {
+                Ok(data) => data,
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("Serialize error: {}", e)).into_response(),
+            };
+            let add_response = match ipfs_client.add(Cursor::new(receipt_data)).await {
+                Ok(res) => res,
+                Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS add error: {}", e)).into_response(),
+            };
+            let cid = add_response.hash;
+            ipfs_registry.register(comp_hash_str.to_string(), cid);
+            println!("[-] {} 證明完成並上傳到 IPFS", comp_name);
+            
+            // TODO: 輸出 proof 到 IPFS，並將 CID 註冊到 ipfs_registry 中
+            // 這個 CID 要回傳給 node.js 這樣他才能在驗證時呼叫 zk-verifier 從 IPFS 下載證明來驗證
+        }
     }
 
     // 7. 取出最頂層的最終證明回傳給前端
@@ -163,6 +240,7 @@ async fn handle_prove(
             proof: proof_encoded,
             journal: journal_encoded,
             prove_duration_ms,
+            root_cid,
         }).into_response()
     } else {
         (StatusCode::BAD_REQUEST, "No components to prove").into_response()
