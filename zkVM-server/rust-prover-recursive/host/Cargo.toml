@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 methods = { path = "../methods" }
-risc0-zkvm = { version = "^3.0.4" }
+risc0-zkvm = { version = "3.0.5" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # 共享的資料結構
@@ -22,6 +22,7 @@ axum = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 bincode = "1.3"
 tracing = "0.1"
+ipfs-api-backend-hyper = "0.6"
 bytes = "1.0"
 base64ct = "1.6"  # Pin to older version that doesn't require edition 2024
 futures = "0.3"
