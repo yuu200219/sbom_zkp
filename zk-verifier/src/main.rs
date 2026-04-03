@@ -1,8 +1,10 @@
 use clap::Parser;
 use risc0_zkvm::Journal;
 use risc0_zkvm::Receipt;
+use risc0_zkvm::sha::Digest;
 use serde_json::Value;
 use std::fs;
+use std::str::FromStr;
 use std::time::Instant;
 
 #[derive(Parser)]
@@ -65,13 +67,8 @@ fn main() {
     };
     // 2. 轉換 Image ID (vk)
     let image_id_str = args.image_id.trim_start_matches("0x");
-    let image_id_bytes = hex::decode(image_id_str).expect("無效的 Image ID 格式");
-
-    // RISC Zero 的 Image ID 是 [u32; 8]
-    let mut image_id = [0u32; 8];
-    for i in 0..8 {
-        image_id[i] = u32::from_be_bytes(image_id_bytes[i * 4..(i + 1) * 4].try_into().unwrap());
-    }
+    let bytes = hex::decode(image_id_str).expect("Hex 解碼失敗");
+    let image_id = Digest::from_bytes(bytes.try_into().expect("長度不符"));
 
     // 3. 執行驗證
     match receipt.verify(image_id) {
