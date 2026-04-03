@@ -24,7 +24,7 @@ struct ProveResponse {
     proof: String,   // Hex 編碼的 Receipt
     journal: String, // Hex 編碼的 Journal (用於快速驗證)
     #[serde(rename = "proveDurationMs")] // 讓 Rust 欄位對應到 Node 的 JSON 鍵名
-    prove_duration_ms: u128 
+    prove_duration_ms: u128,
 }
 
 // 輔助函式：Hex 轉換邏輯保持不變
@@ -79,8 +79,6 @@ async fn handle_prove(
     // 3. 依序遍歷 Node.js 傳來的拓撲排序陣列 (由葉子節點到根節點)
     println!("[-] 開始處理套件證明，總套件數: {}", components.len());
     for comp in components {
-        // 判別是否存在於 ipfs
-        let cached_cid = ipfs_registry.lookup(comp.id);
         // 提取套件本身的資訊
         let comp_name = comp["name"].as_str().unwrap_or("unknown").to_string();
         let comp_hash_str = comp["hash"].as_str().unwrap();
@@ -107,14 +105,12 @@ async fn handle_prove(
 
         println!("[-] 正在證明套件: {}", comp_name);
 
-
         // 【關鍵核心】：將子依賴的 Receipt 註冊為 Assumption
         let mut assumptions_to_add = Vec::new();
         for dep_hash in &comp_input.dependency_hashes {
             let dep_hex = hex::encode(dep_hash);
             if let Some(child_receipt) = receipt_cache.get(&dep_hex) {
                 // 將已經算好的 Receipt 加入環境，這樣 Guest 的 env::verify 才會通過
-                // env_builder.add_assumption(child_receipt.clone());
                 assumptions_to_add.push(child_receipt.clone());
             } else {
                 return (StatusCode::BAD_REQUEST, format!("Missing receipt for dependency {}", dep_hex)).into_response();
@@ -153,9 +149,6 @@ async fn handle_prove(
         // 不斷覆寫 final_receipt，迴圈結束時它就會是整棵樹最頂層 (Root) 的收據
         final_receipt = Some(receipt);
         println!("[-] {} 證明完成", comp_name);
-        
-        // TODO: 輸出 proof 到 IPFS，並將 CID 註冊到 ipfs_registry 中
-        // 這個 CID 要回傳給 node.js 這樣他才能在驗證時呼叫 zk-verifier 從 IPFS 下載證明來驗證
     }
 
     // 7. 取出最頂層的最終證明回傳給前端
