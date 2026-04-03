@@ -20,8 +20,11 @@
 - Rust tool chain
     ```
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y source "$HOME/.cargo/env"
+    curl -L https://risczero.com/install | bash
+    # restart terminal!
     rustc --version
     cargo --version
+    rzup install rust
     ```
     ```
     cd zkVM-server/rust-prover-recursive
