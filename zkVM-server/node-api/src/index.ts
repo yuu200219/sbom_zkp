@@ -67,7 +67,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             treeData: sbomData
         });
 
-        const { proof, journal } = response.data;
+        const { proof, journal, root_cid } = response.data;
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 
@@ -107,6 +107,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             success: true,
             proof,
             journal,
+            root_cid,
             merkleRoot,
             componentsAnalyzed: sbomData.components.length,
             time: {
@@ -149,7 +150,7 @@ app.post('/api/prove', async (req: Request, res: Response) => {
 
         const merkleRoot = treeData.merkleRoot;
 
-        const { proof, journal } = response.data;
+        const { proof, journal, root_cid } = response.data;
         console.timeEnd(`Proving-${artifactId}`); // 實驗數據埋點：結束計時
         // 2. 這裡可以同步或非同步執行上鏈交易
         // await submitToBlockchain(artifactId, proof);
@@ -165,35 +166,33 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         fs.writeFileSync(path.join(storagePath, fileName), fileContent);
         console.log(`💾 Proof 已存檔至: proofs/${fileName}`);
 
-        // 連接到 ipfs 並將 proof 上傳到 ipfs
-
-        let ipfsHash = "";
-
-        try {
-            // --- 上傳到 IPFS ---
-            const { cid } = await ipfs.add(fileContent);
-            ipfsHash = cid.toString();
-            console.log(`🚀 Proof 已上傳至 IPFS, CID: ${ipfsHash}`);
-
-        } catch (ipfsError) {
-            console.error('IPFS 上傳失敗:', ipfsError);
-            res.status(500).json({ error: 'IPFS 上傳失敗' });
-        }
+        // // 連接到 ipfs 並將 proof 上傳到 ipfs
+        // let ipfsHash = "";
+        // try {
+        //     // --- 上傳到 IPFS ---
+        //     const { cid } = await ipfs.add(fileContent);
+        //     ipfsHash = cid.toString();
+        //     console.log(`🚀 Proof 已上傳至 IPFS, CID: ${ipfsHash}`);
+        // } catch (ipfsError) {
+        //     console.error('IPFS 上傳失敗:', ipfsError);
+        //     res.status(500).json({ error: 'IPFS 上傳失敗' });
+        // }
 
         res.status(200).json({
                 success: true,
                 proof,
                 journal,
+                root_cid,
                 merkleRoot,
                 savedAs: fileName,
                 time: {
                     'proveDurationMs': response.data.proveDurationMs,
                     'totalProcessTimeMs': response.data.proveDurationMs // 現在只有 proveDurationMs，可擴充
-                },
-                ipfs: ipfsHash ? {
-                cid: ipfsHash,
-                url: `https://ipfs.io/ipfs/${ipfsHash}`
-            } : 'failed'
+                }
+                // ipfs: ipfsHash ? {
+                //     cid: ipfsHash,
+                //     url: `http://localhost:8080/ipfs/${ipfsHash}`  // 本地 IPFS 網關 URL，適用於私有網絡
+                // } : 'failed'
         });
     } catch (error: any) {
         console.error('Prover 錯誤:', error.message);

@@ -25,6 +25,8 @@
     rustc --version
     cargo --version
     rzup install rust
+    rustup toolchain list
+    # showing risc0 related toolchain
     ```
     ```
     cd zkVM-server/rust-prover-recursive

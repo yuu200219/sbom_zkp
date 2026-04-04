@@ -37,6 +37,7 @@ services:
     restart: always
   ipfs:
     image: ipfs/kubo:latest
+    user: "1000:1000"
     container_name: ipfs_node
     environment:
       - IPFS_PROFILE=server
@@ -50,7 +51,7 @@ services:
       /bin/sh -c "
         if [ ! -f /data/ipfs/config ]; then
           ipfs init --profile server
-        fi
+        fi 
         ipfs config --json AutoConf.Enabled false
         ipfs bootstrap rm --all
         exec /sbin/tini -- /usr/local/bin/start_ipfs daemon --migrate=true
