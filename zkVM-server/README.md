@@ -13,36 +13,31 @@
     ```
 - Node.js & npm
     ```
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.bashrc
     cd zkVM-server/node-api
+    nvm install
     nvm use
-    npm install --save-dev @types/multer @types/form-data
+    npm install
     ```
 - Rust tool chain
+  - 參考官網：https://rust-lang.org/tools/install/
     ```
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y source "$HOME/.cargo/env"
-    curl -L https://risczero.com/install | bash
-    # restart terminal!
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    source ~/.bashrc
     rustc --version
-    cargo --version
-    rzup install rust
-    rustup toolchain list
-    # showing risc0 related toolchain
     ```
+- RISC0 installation
+  - 參考官往：https://dev.risczero.com/api/zkvm/install
+  - prerequisite: `rustup`
     ```
-    cd zkVM-server/rust-prover-recursive
-    source "$HOME/.cargo/env"
-    cargo install risc0-tools
-    cargo build --release
-    ```
-- RISC0 tool chain
-    ```
-    # 方式一：使用預編譯二進制（推薦）
-    mkdir -p ~/.cargo/bin
-    curl -L https://github.com/risc0/risc0/releases/download/rzup-v0.5.0/rzup-x86_64-unknown-linux-gnu -o ~/.cargo/bin/rzup
-    chmod +x ~/.cargo/bin/rzup
-
-    # 安裝 RISC-0 Rust 工具鏈
-    rzup install rust
+    # install rzup
+    curl -L https://risczero.com/install | bash
+    source ~/.bashrc
+    # Running rzup will install the latest released version of the RISC Zero toolchain.
+    rzup install
+    # In our project, we will use 3.0.5 as our risc0 version, so run the following command instead.
+    rzup install cargo-risczero 3.0.5
     ```
 ## Architecture Overview
 有四個 Components

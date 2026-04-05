@@ -8,6 +8,8 @@ steel/
 sbom-risc0/sbom-verify/profile.pb
 
 zkVM-server/node-api/node_modules
+zkVM-server/node-api/package-lock.json
+zkVM-server/node-api/package.json
 zkVM-server/sbom_service/node_modules
 zkVM-server/node-api/proofs/
 zkVM-server/ipfs/ipfs_data/
