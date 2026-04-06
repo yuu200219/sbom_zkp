@@ -16,6 +16,7 @@ npm install express axios ethers dotenv
 npm install --save-dev typescript @types/node @types/express ts-node
 npm install --save-dev tsx
 npm install kubo-rpc-client
+npm install -g tsx
 npx tsc --init
 ```
 ## Modify `package.json`

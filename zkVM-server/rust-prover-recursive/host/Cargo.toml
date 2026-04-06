@@ -26,3 +26,4 @@ ipfs-api-backend-hyper = "0.6"
 bytes = "1.0"
 base64ct = "1.6"  # Pin to older version that doesn't require edition 2024
 futures = "0.3"
+ipfs-api = "0.17.0"

@@ -45,13 +45,19 @@ services:
     volumes:
       - ./ipfs/ipfs_staging:/export
       - ./ipfs/ipfs_data:/data/ipfs
-      - ./ipfs/ipfs_data/swarm.key:/data/ipfs/swarm.key # 重要：掛載私鑰
     # 簡化 Command，確保啟動穩定
     entrypoint: >
       /bin/sh -c "
         if [ ! -f /data/ipfs/config ]; then
           ipfs init --profile server
         fi 
+        
+        ipfs config --json Addresses.API '\"/ip4/0.0.0.0/tcp/5001\"'
+        ipfs config --json Addresses.Gateway '\"/ip4/0.0.0.0/tcp/8080\"'
+        
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '[\"http://127.0.0.1:5001\", \"http://localhost:3000\", \"http://127.0.0.1:8080\"]'
+        ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '[\"PUT\", \"POST\", \"GET\"]'
+        
         ipfs config --json AutoConf.Enabled false
         ipfs bootstrap rm --all
         exec /sbin/tini -- /usr/local/bin/start_ipfs daemon --migrate=true
