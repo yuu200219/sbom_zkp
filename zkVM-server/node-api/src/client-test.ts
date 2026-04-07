@@ -37,6 +37,7 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
 
         // 3. 處理結果
         console.log("✅ [Client] 成功拿到結果！");
+        console.log("Root CID:", response.data.root_cid);
         console.log("Merkle Root:", response.data.merkleRoot);
         console.log("分析的組件數量:", response.data.componentsAnalyzed);
         // console.log("ZK Proof 狀態: proved 且上傳至 IPFS");
@@ -55,8 +56,8 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
 // --- 測試區 ---
 
 // 測試案例 A: Python 需求檔
-const pythonManifest = '../../../sbom-risc0/sbom/flask_server/poetry.lock';
-const nodeLockfile = '../package-lock.json';
+const pythonManifest = '../../sbom-risc0/sbom/flask_server/poetry.lock';
+const nodeLockfile = 'package-lock.json';
 testGenerateAndProve(pythonManifest, "python-app-v1");
 // testGenerateAndProve(nodeLockfile, "node-app-v1");
 

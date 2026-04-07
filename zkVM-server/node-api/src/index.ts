@@ -114,7 +114,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
                 'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
                 'proveDurationMs': response.data.proveDurationMs,
                 // 'ipfsUploadMs': ipfsTime,
-                'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs // + response.data.proveDurationMs + ipfsTime
+                'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs + response.data.proveDurationMs
             },
             // ipfs: ipfsHash ? {
             //     cid: ipfsHash,

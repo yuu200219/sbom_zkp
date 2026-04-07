@@ -27,7 +27,7 @@ npx tsc --init
   "main": "server.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "test:prove": "tsx scripts/client-test.ts",
+    "test:prove": "tsx src/client-test.ts",
     "build": "tsc"
   },
   "keywords": [],

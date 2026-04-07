@@ -8,6 +8,8 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use std::collections::HashMap;
 use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
+use std::sync::{Arc, RwLock};
+use axum::extract::State;
 
 // --- 與 Node.js 對接的請求格式 ---
 #[derive(Deserialize)]
@@ -29,6 +31,12 @@ struct ProveResponse {
     #[serde(rename = "rootCid")]
     root_cid: Option<String>, // 根節點的 IPFS CID
 }
+
+struct CompState {
+    // RwLock 永許多個 trheads 同時讀取，但是只有一個可以寫入
+    ipfs_map: RwLock<HashMap<String, String>>,
+}
+
 
 // #[derive(Clone)]
 // struct IpfsRegistry {
@@ -64,6 +72,7 @@ fn decode_hex_32(s: &str) -> [u8; 32] {
 }
 
 async fn handle_prove(
+    State(state): State<Arc<CompState>>,
     Json(payload): Json<ProveRequest> 
 ) -> axum::response::Response { // 修正 1: 明確回傳 Response 類型
 
@@ -72,7 +81,7 @@ async fn handle_prove(
     let tree_data = payload.tree_data;
 
     // let mut ipfs_registry = IpfsRegistry::new();
-    let mut ipfs_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    // let mut ipfs_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     // let ipfs_client = IpfsClient::default();
 
     // 修正 2: 明確標註 components 為 &Vec<Value>，避免推導錯誤
@@ -104,16 +113,21 @@ async fn handle_prove(
 
     println!("[-] 開始處理套件證明，總套件數: {}", components.len());
     for comp in components {
-        let comp_name = comp["name"].as_str().unwrap_or("unknown").to_string();
-        // 修正 3: 使用 .as_str() 並明確處理
         let comp_hash_str = match comp["hash"].as_str() {
             Some(s) => s,
             None => return (StatusCode::BAD_REQUEST, "Component hash missing").into_response(),
         };
+
+        let cached_cid = {
+            let map = state.ipfs_map.read().unwrap();
+            map.get(comp_hash_str).cloned() // cloned 轉成 String 帶出作用域
+        };
+
+        let comp_name = comp["name"].as_str().unwrap_or("unknown").to_string();
         let comp_hash = decode_hex_32(comp_hash_str);
         
-        if let Some(cached_cid) = ipfs_map.get(comp_hash_str) {
-            let cid_clone = cached_cid.clone();
+        if let Some(cid) = cached_cid {
+            let cid_clone = cid.clone();
             // let receipt_stream = client.cat(cached_cid);
             // // 修正 4: 處理 Bytes 到 Vec<u8> 的收集
             // let chunks: Vec<risc0_zkvm::Bytes> = match receipt_stream.try_collect().await {
@@ -150,7 +164,7 @@ async fn handle_prove(
             }
             receipt_cache.insert(comp_hash_str.to_string(), stored_proof.receipt.clone());
             final_receipt = Some(stored_proof.receipt);
-            root_cid = Some(cached_cid.to_string());
+            root_cid = Some(cid.to_string());
             println!("[-] {} 從 IPFS 驗證完成", comp_name);
             continue; 
         } else {
@@ -234,7 +248,12 @@ async fn handle_prove(
             root_cid = Some(cid.clone());
 
             // ipfs_registry.register(comp_hash_str.to_string(), cid);
-            ipfs_map.insert(comp_hash_str.to_string(), cid);
+            // ipfs_map.insert(comp_hash_str.to_string(), cid);
+            // 取得寫入鎻，更新 global map
+            {
+                let mut map = state.ipfs_map.write().unwrap();
+                map.insert(comp_hash_str.to_string(), cid);
+            }
             println!("[-] {} 證明完成並上傳到 IPFS", comp_name);
         }
     }
@@ -245,6 +264,7 @@ async fn handle_prove(
         let prove_duration_ms = start_calc.elapsed().as_millis();
 
         println!("✅ 遞歸證明完成，總耗時: {} ms", prove_duration_ms);
+        println!("CID: {}", root_cid.as_deref().unwrap_or("None"));
 
         Json(ProveResponse {
             proof: proof_encoded,
@@ -260,6 +280,11 @@ async fn handle_prove(
 
 #[tokio::main]
 async fn main() {
+
+    let shared_state = Arc::new(CompState {
+        ipfs_map: RwLock::new(HashMap::new()),
+    });
+
     let image_id_hex = GUEST_CODE_FOR_ZKP_ID
         .iter()
         .flat_map(|n| n.to_le_bytes()) // 轉為大端序位元組
@@ -276,7 +301,8 @@ async fn main() {
 
     // 建立路由
     let app = Router::new()
-        .route("/prove", post(handle_prove));
+        .route("/prove", post(handle_prove))
+        .with_state(shared_state); //  注入狀態
 
     // let app = Router::new()
     // .route("/prove", post(|payload: Json<ProveRequest>| async move {
