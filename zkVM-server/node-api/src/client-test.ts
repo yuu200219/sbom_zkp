@@ -15,7 +15,7 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
 
     // 1. 建立 FormData 並附加檔案與資料
     const form = new FormData();
-    
+
     // 'file' 必須對應到 node-api 中 upload.single('file') 的名稱
     form.append('file', fs.createReadStream(filePath));
     form.append('artifactId', artifactId);

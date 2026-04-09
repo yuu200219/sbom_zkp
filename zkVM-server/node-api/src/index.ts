@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import type { SbomServiceResponse,  ProverResponse} from './types.js';
+import type { SbomServiceResponse, ProverResponse } from './types.js';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import multer from 'multer';
@@ -23,14 +23,14 @@ const SBOM_SERVICE_URL = process.env.SBOM_SERVICE_URL || 'http://localhost:3002'
 
 app.use(express.json({ limit: '50mb' })); // SBOM 可能很大，放寬限制
 
-app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, res: Response) => {    
-    
+app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, res: Response) => {
+
     // 取得 proof 請求資料
     const file = req.file;
     const { artifactId } = req.body;
 
     if (!file) return res.status(400).json({ error: '請上傳 lockfile (如 package-lock.json)' });
-    
+
     try {
         console.log(`[Node] 1. 正在轉發檔案至 SBOM Service: ${file.originalname}`);
 
@@ -41,22 +41,16 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         const sbomRes = await axios.post<any>(`${SBOM_SERVICE_URL}/generate`, form, {
             headers: { ...form.getHeaders() }
         });
-        const { 
-            merkleRoot, 
-            sortedComponents = [],           // 這是 sbom_service 給的原始 Key
+        const {
+            preorderComponents = [],          // 這是 sbom_service 給的原始 Key
             totalDurationMs = 0,             // 這是 sbom_service 給的原始 Key
-            merkleDot = '',
-            dependencyDot = '',
         } = sbomRes.data;
 
         const sbomData: SbomServiceResponse = {
-            merkleRoot: merkleRoot,
-            components: sortedComponents,    // 將原始陣列映射到 components 欄位
+            components: preorderComponents,    // 將原始陣列映射到 components 欄位
             sbomServiceTotalDurationMs: totalDurationMs,
-            merkleDot: merkleDot,
-            dependencyDot: dependencyDot,
         };
-        console.log(`[Node] SBOM 生成成功, Merkle Root: ${merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
+        console.log(`[Node] SBOM 生成成功, Merkle Root: ${preorderComponents[0]?.merkleData?.merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
 
         console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
         console.log(`[Node] 正在為 ${artifactId} 請求零知識證明...`);
@@ -65,9 +59,14 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
             artifactId,
             treeData: sbomData
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            timeout: 0
         });
 
-        const { proof, journal, root_cid } = response.data;
+        const { proof, journal, rootCid: root_cid } = response.data;
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 
@@ -78,7 +77,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         const fileName = `proof-${artifactId}-${Date.now()}.json`;
         const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
         fs.writeFileSync(path.join(storagePath, fileName), fileContent);
-        
+
         console.log(`[Node] Proof 已存檔至: proofs/${fileName}`);
 
         // 連接到 ipfs 並將 proof 上傳到 ipfs
@@ -88,9 +87,9 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         //     // --- 上傳到 IPFS ---
         //     const { cid } = await ipfs.add(fileContent);
         //     ipfsHash = cid.toString();
-            
+
         //     console.log(`🚀 Proof 已上傳至 IPFS, CID: ${ipfsHash}`);
-            
+
         //     // res.status(200).json({
         //     //     success: true,
         //     //     ipfsUrl: `https://ipfs.io/ipfs/${ipfsHash}`,
@@ -108,7 +107,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             proof,
             journal,
             root_cid,
-            merkleRoot,
+            merkleRoot: sbomData.components[0]?.merkleData?.merkleRoot,
             componentsAnalyzed: sbomData.components.length,
             time: {
                 'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
@@ -122,7 +121,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             // } : 'failed'
         });
 
-        
+
     } catch (error: any) {
         console.error('流程錯誤:', error.message);
         res.status(500).json({ success: false, error: '整合流程失敗', details: error.message });
@@ -179,20 +178,20 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         // }
 
         res.status(200).json({
-                success: true,
-                proof,
-                journal,
-                root_cid,
-                merkleRoot,
-                savedAs: fileName,
-                time: {
-                    'proveDurationMs': response.data.proveDurationMs,
-                    'totalProcessTimeMs': response.data.proveDurationMs // 現在只有 proveDurationMs，可擴充
-                }
-                // ipfs: ipfsHash ? {
-                //     cid: ipfsHash,
-                //     url: `http://localhost:8080/ipfs/${ipfsHash}`  // 本地 IPFS 網關 URL，適用於私有網絡
-                // } : 'failed'
+            success: true,
+            proof,
+            journal,
+            root_cid,
+            merkleRoot,
+            savedAs: fileName,
+            time: {
+                'proveDurationMs': response.data.proveDurationMs,
+                'totalProcessTimeMs': response.data.proveDurationMs // 現在只有 proveDurationMs，可擴充
+            }
+            // ipfs: ipfsHash ? {
+            //     cid: ipfsHash,
+            //     url: `http://localhost:8080/ipfs/${ipfsHash}`  // 本地 IPFS 網關 URL，適用於私有網絡
+            // } : 'failed'
         });
     } catch (error: any) {
         console.error('Prover 錯誤:', error.message);

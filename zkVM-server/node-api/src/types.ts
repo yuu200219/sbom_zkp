@@ -1,6 +1,19 @@
 export interface MerklePath {
     pathElements: string[];
-    pathIndices: number[]; // 0 for left, 1 for right
+    pathIndices: number[]; // 0: Left, 1: Right
+}
+
+export interface MerkleLeaf {
+    name: string;
+    version: string;
+    hash: string;
+    merklePath?: MerklePath;
+}
+
+
+export interface MerkleData {
+    merkleRoot: string;
+    components: MerkleLeaf[];
 }
 
 export interface SbomComponent {
@@ -10,14 +23,14 @@ export interface SbomComponent {
     hash: string;
     type: string;
     purl: string;
+    merkleData?: MerkleData; // 可選的 Merkle Tree 資料
 }
 
 export interface SbomServiceResponse {
-    merkleRoot: string;
     components: SbomComponent[];
     sbomServiceTotalDurationMs: number;
-    merkleDot: string;
-    dependencyDot: string;
+    merkleDot?: string;
+    dependencyDot?: string;
 }
 
 export interface ProverResponse {
