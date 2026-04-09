@@ -1,9 +1,28 @@
 import crypto from 'crypto';
 
 // --- 基礎型別定義 ---
+
 export interface MerklePath {
     pathElements: string[];
     pathIndices: number[]; // 0: Left, 1: Right
+}
+
+export interface MerkleLeaf {
+    name: string;
+    version: string;
+    hash: string;
+    merklePath?: MerklePath;
+}
+
+
+export interface MerkleData {
+    merkleRoot: string;
+    components: MerkleLeaf[];
+}
+
+export interface MerkleTreeResult {
+    merkleData: MerkleData;
+    dot?: string; // 可選的 Merkle Tree 視覺化 DOT 格式
 }
 
 export interface SbomComponent {
@@ -15,27 +34,7 @@ export interface SbomComponent {
     purl: string;
     license: string;
     severity: string;
-}
-
-export interface DependencyNode {
-    id: string;       // 通常是 "name@version"
-    name: string;
-    version: string;
-    hash: string;
-    dependencies: string[]; // 存儲子節點的 ID
-}
-
-export interface MerkleLeaf{
-    name: string;
-    version: string;
-    hash: string;
-    merklePath?: MerklePath;
-}
-
-export interface MerkleTreeResult {
-    merkleRoot: string;
-    components: MerkleLeaf[];
-    dot?: string; // 可選的 Merkle Tree 視覺化 DOT 格式
+    merkleData?: MerkleData;
 }
 
 
@@ -98,9 +97,94 @@ export class SbomProcessor {
 
     //     return { leaves, leafInfo };
     // }   
-    public analyzeDependencies(sbomJson: any): { 
-        sortedComponents: SbomComponent[], 
-        componentMap: Map<string, SbomComponent> 
+    public preorderTraversal(rawSbom: any): {
+        preorderComponents: SbomComponent[],
+        dependencyMap: Map<string, string[]>,
+        componentMap: Map<string, SbomComponent>
+    } {
+        const preorderComponents: SbomComponent[] = [];
+        const visited = new Set<string>();
+
+        // 1. 正規化：整合所有組件並建立 Lookup Map
+        // 包含 metadata.component (根) 與 components 陣列 (子)
+        const allRaw = [
+            ...(rawSbom.metadata?.component ? [rawSbom.metadata.component] : []),
+            ...(rawSbom.components || [])
+        ];
+
+        const componentLookup = new Map<string, SbomComponent>();
+        allRaw.forEach(c => {
+            const ref = c['bom-ref'] || `${c.name}@${c.version}`;
+
+            // 生成內容雜湊 (如果原本沒有就計算)
+            let hash = "";
+            if (c.hashes && c.hashes.length > 0) {
+                hash = c.hashes[0].content;
+            } else {
+                const content = `${c.name}${c.version}${c.purl || ''}`;
+                hash = crypto.createHash('sha256').update(content).digest('hex');
+            }
+
+            // 轉換為你的標準 Interface 格式
+            componentLookup.set(ref, {
+                bomRef: ref,
+                name: c.name,
+                version: c.version,
+                hash: hash,
+                type: c.type || 'library',
+                purl: c.purl || '',
+                license: c.licenses?.[0]?.license?.id || 'Unknown',
+                severity: 'Unknown'
+            });
+        });
+
+        // 2. 建立相依關係 Map
+        const dependencyMap = new Map<string, string[]>();
+        rawSbom.dependencies?.forEach((dep: any) => {
+            dependencyMap.set(dep.ref, dep.dependsOn || []);
+        });
+
+        // 3. 定義前序遞迴 (根 -> 子)
+        const traverse = (ref: string) => {
+            if (visited.has(ref)) return;
+
+            const comp = componentLookup.get(ref);
+            if (comp) {
+                visited.add(ref);
+                preorderComponents.push(comp); // 先加入自己
+
+                // 遞迴處理子節點
+                const childrenRefs = dependencyMap.get(ref) || [];
+                // 建議 sort 子節點以保證每次生成的順序（及之後的 Merkle Root）一致
+                [...childrenRefs].sort().forEach(childRef => traverse(childRef));
+            }
+        };
+
+        // 4. 從根節點 (Root) 開始啟動
+        const rootRef = rawSbom.metadata?.component?.['bom-ref'];
+        if (rootRef) {
+            traverse(rootRef);
+        }
+
+        // 5. 處理「孤立節點」 (不在依賴鏈中，但存在於 components 陣列裡)
+        // 這樣能保證所有元件都被包含在內，且順序穩定
+        Array.from(componentLookup.keys()).sort().forEach(ref => {
+            if (!visited.has(ref)) {
+                traverse(ref);
+            }
+        });
+
+        return {
+            preorderComponents,
+            dependencyMap,
+            componentMap: componentLookup
+        };
+    }
+
+
+    public analyzeDependencies(sbomJson: any): {
+        sortedComponents: SbomComponent[],
+        componentMap: Map<string, SbomComponent>
     } {
         const componentsArray = sbomJson.components || [];
         const dependenciesArray = sbomJson.dependencies || [];
@@ -197,18 +281,20 @@ export class SbomProcessor {
         return { sortedComponents, componentMap };
     }
 
-    public buildDependencyGraph(nodes: DependencyNode[]): string {
-        let dot = 'digraph DependencyTree {\n';
+    public buildGraphFromComponents(components: SbomComponent[], dependencyMap: Map<string, string[]>): string {
+        let dot = 'digraph DependencyGraph {\n';
         dot += '    node [fontname="Arial", fontsize=10, shape=record];\n';
-        dot += '    rankdir=LR;\n'; // 從左到右顯示依賴關係
+        dot += '    rankdir=LR;\n';
 
-        nodes.forEach(node => {
-            // 定義節點樣式
-            dot += `    "${node.id}" [label="{ ${node.name} | ${node.version} }", style=filled, fillcolor="#e1f5fe"];\n`;
-            
-            // 建立連線：A 依賴於 B (A -> B)
-            node.dependencies.forEach(depId => {
-                dot += `    "${node.id}" -> "${depId}";\n`;
+        components.forEach(c => {
+            // 1. 定義節點 (加上 hash 的前 6 碼讓它看起來更專業)
+            const shortHash = c.hash.substring(0, 6);
+            dot += `    "${c.bomRef}" [label="{ ${c.name} | ${c.version} | ${shortHash} }", style=filled, fillcolor="#e1f5fe"];\n`;
+
+            // 2. 建立連線
+            const children = dependencyMap.get(c.bomRef) || [];
+            children.forEach(childRef => {
+                dot += `    "${c.bomRef}" -> "${childRef}";\n`;
             });
         });
 
@@ -218,14 +304,14 @@ export class SbomProcessor {
     /**
      * 第二步：計算 Merkle Tree 並生成證明路徑
      */
-    public buildTree(leaves: string[], leafInfo: { name: string, version: string }[]): MerkleTreeResult {
+    public buildMerkleTree(leaves: string[], leafInfo: { name: string, version: string }[]): MerkleData {
         const realLeafCount = leaves.length;
         if (realLeafCount === 0) throw new Error("No valid hashes found after filtering");
 
         // 1. 補齊至 2 的冪次方 (避免 undefined 的核心)
         let nextPowerOf2 = 1;
         while (nextPowerOf2 < realLeafCount) nextPowerOf2 *= 2;
-        
+
         const workingLayer = [...leaves];
         while (workingLayer.length < nextPowerOf2) {
             workingLayer.push(this.PADDING_VALUE);
@@ -260,12 +346,12 @@ export class SbomProcessor {
                 const layer = layers[L]!;
                 const isRightNode = currentIndex % 2 === 1;
                 const siblingIndex = isRightNode ? currentIndex - 1 : currentIndex + 1;
-                
+
                 // 這裡絕對不會是 undefined，因為補齊了冪次方
                 const sibling = layer[siblingIndex]!;
                 pathElements.push(sibling);
                 pathIndices.push(isRightNode ? 1 : 0);
-                
+
                 currentIndex = Math.floor(currentIndex / 2);
             }
 
@@ -289,11 +375,11 @@ export class SbomProcessor {
 
         // 輔助函式：縮短 Hash 顯示
         const shortHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)}`;
-        
+
         // 1. 補齊至 2 的冪次方
         let nextPowerOf2 = 1;
         while (nextPowerOf2 < realLeafCount) nextPowerOf2 *= 2;
-        
+
         const workingLayer = [...leaves];
         while (workingLayer.length < nextPowerOf2) {
             workingLayer.push(this.PADDING_VALUE);
@@ -309,7 +395,7 @@ export class SbomProcessor {
             const nodeId = `L0_${i}`;
             const hashLabel = shortHash(workingLayer[i]!);
             if (i < realLeafCount) {
-                const info = leafInfo[i]!; 
+                const info = leafInfo[i]!;
                 const label = `${info.name}\\n${info.version}\\n${hashLabel}`;
                 dot += `    "${nodeId}" [label="${label}", shape=box, style=filled, fillcolor="#e6f3ff", color="#0066cc"];\n`;
             } else {
@@ -378,7 +464,10 @@ export class SbomProcessor {
             });
         }
 
-        return { merkleRoot, components, dot };
+        return {
+            merkleData: { merkleRoot, components },
+            dot
+        };
     }
 
     private sha256(left: string, right: string): string {
