@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import type { SbomServiceResponse, ProverResponse } from './types.js';
+import type { SbomServiceResponse, ProverResponse, SbomComponent } from './types.js';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import multer from 'multer';
@@ -20,6 +20,8 @@ const upload = multer({ dest: 'uploads/' }); // 暫存從 client 傳來的檔案
 
 const RUST_PROVER_URL = process.env.RUST_PROVER_URL || 'http://localhost:3001';
 const SBOM_SERVICE_URL = process.env.SBOM_SERVICE_URL || 'http://localhost:3002';
+
+const mapToObj = (map: Map<any, any>) => Object.fromEntries(map);
 
 app.use(express.json({ limit: '50mb' })); // SBOM 可能很大，放寬限制
 
@@ -42,15 +44,24 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             headers: { ...form.getHeaders() }
         });
         const {
-            preorderComponents = [],          // 這是 sbom_service 給的原始 Key
-            totalDurationMs = 0,             // 這是 sbom_service 給的原始 Key
+            preorderComponents = [],
+            totalDurationMs = 0,
+            dependencyMap = {}, // 預設值改為 {}，因為 JSON 傳過來就是 Object
+            componentMap = {}   // 預設值改為 {}
         } = sbomRes.data;
 
-        const sbomData: SbomServiceResponse = {
-            components: preorderComponents,    // 將原始陣列映射到 components 欄位
+        const sbomData = {
+            components: preorderComponents,
             sbomServiceTotalDurationMs: totalDurationMs,
+            dependencyMap: dependencyMap, // 確保是 { "id": ["id2"] }
+            componentMap: componentMap    // 確保是 { "id": { name: "..." } }
         };
         console.log(`[Node] SBOM 生成成功, Merkle Root: ${preorderComponents[0]?.merkleData?.merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
+
+
+        console.log("[Debug] Root component bomRef:", preorderComponents[0].bomRef);
+        console.log("[Debug] componentMap keys:", Object.keys(componentMap).slice(0, 5));
+        // console.log("[Debug] componentMap first few keys:", Object.keys(Object.fromEntries(componentMap)).slice(0, 3));
 
         console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
         console.log(`[Node] 正在為 ${artifactId} 請求零知識證明...`);
@@ -66,7 +77,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             timeout: 0
         });
 
-        const { proof, journal, rootCid: root_cid } = response.data;
+        const { proof, journal, rootCid: root_cid, prove_duration_ms} = response.data;
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 

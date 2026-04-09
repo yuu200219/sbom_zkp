@@ -320,6 +320,8 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
             // merkleRoot: merkleTreeResult.merkleRoot,
             // dependencyDot: dependencyDot,
             preorderComponents: preorderComponents,
+            dependencyMap: dependencyMap,
+            componentMap: componentMap,
             totalDurationMs: Math.round(totalTime),
         });
 

@@ -28,6 +28,8 @@ export interface SbomComponent {
 
 export interface SbomServiceResponse {
     components: SbomComponent[];
+    dependencyMap?: Map<string, string[]>; // 可選的依賴關係圖
+    componentMap?: Map<string, SbomComponent>; // 可選的元件詳細資料圖
     sbomServiceTotalDurationMs: number;
     merkleDot?: string;
     dependencyDot?: string;

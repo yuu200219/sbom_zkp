@@ -104,7 +104,7 @@ export class SbomProcessor {
     } {
         const preorderComponents: SbomComponent[] = [];
         const visited = new Set<string>();
-
+        const getRef = (c: any) => c['bom-ref'] || `${c.name}@${c.version}`;
         // 1. 正規化：整合所有組件並建立 Lookup Map
         // 包含 metadata.component (根) 與 components 陣列 (子)
         const allRaw = [
@@ -114,7 +114,7 @@ export class SbomProcessor {
 
         const componentLookup = new Map<string, SbomComponent>();
         allRaw.forEach(c => {
-            const ref = c['bom-ref'] || `${c.name}@${c.version}`;
+            const ref = getRef(c);
 
             // 生成內容雜湊 (如果原本沒有就計算)
             let hash = "";
@@ -161,8 +161,9 @@ export class SbomProcessor {
         };
 
         // 4. 從根節點 (Root) 開始啟動
-        const rootRef = rawSbom.metadata?.component?.['bom-ref'];
-        if (rootRef) {
+        const rootComp = rawSbom.metadata?.component;
+        if (rootComp) {
+            const rootRef = getRef(rootComp); // 確保這裡拿到的跟 lookup 裡存的一模一樣
             traverse(rootRef);
         }
 
