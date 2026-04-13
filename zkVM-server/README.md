@@ -18,6 +18,7 @@
     cd zkVM-server/node-api
     nvm install
     nvm use
+    npm init -y
     npm install
     ```
 - Rust tool chain
