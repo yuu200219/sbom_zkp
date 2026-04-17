@@ -48,6 +48,16 @@
     cd zkVM-server/node-api
     nvm install
     nvm use
+    npm install express axios ethers dotenv multer
+    npm install --save-dev typescript @types/node @types/express ts-node @types/multer
+    npm install --save-dev tsx
+    npm install kubo-rpc-client
+    npm install -g tsx
+    npx tsc --init
+
+    cd ../sbom_service
+    nvm install
+    nvm use
     npm init -y
     npm install
     ```
@@ -65,6 +75,7 @@
     # install rzup
     curl -L https://risczero.com/install | bash
     source ~/.bashrc
+    source ~/profile
     # Running rzup will install the latest released version of the RISC Zero toolchain.
     rzup install
     # In our project, we will use 3.0.5 as our risc0 version, so run the following command instead.
