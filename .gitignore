@@ -17,7 +17,7 @@ zkVM-server/node-api/proofs/
 zkVM-server/ipfs/ipfs_data/
 
 zkVM-server/sbom_service/node_modules
-zkVM-server/sbom-service/package-lock.json
-zkVM-server/sbom-service/package.json
+zkVM-server/sbom_service/package-lock.json
+zkVM-server/sbom_service/package.json
 
 zk-verifier/target/
