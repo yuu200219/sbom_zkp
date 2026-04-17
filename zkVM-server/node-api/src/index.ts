@@ -61,6 +61,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
 
         console.log("[Debug] Root component bomRef:", preorderComponents[0].bomRef);
         console.log("[Debug] componentMap keys:", Object.keys(componentMap).slice(0, 5));
+        console.log("[Debug] dependencyMap keys:", Object.keys(dependencyMap).slice(0, 5));
         // console.log("[Debug] componentMap first few keys:", Object.keys(Object.fromEntries(componentMap)).slice(0, 3));
 
         console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
@@ -77,7 +78,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             timeout: 0
         });
 
-        const { proof, journal, rootCid: root_cid, prove_duration_ms} = response.data;
+        const { proof, journal, rootCid: root_cid, prove_duration_ms } = response.data;
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 
