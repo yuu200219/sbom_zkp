@@ -7,7 +7,8 @@ use serde_json::Value;
 use std::net::SocketAddr;
 use std::time::Instant;
 use std::collections::HashMap;
-use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
+// use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
+use reqwest::{Client, multipart};
 use std::sync::{Arc, RwLock};
 use axum::extract::State;
 use async_recursion::async_recursion;
@@ -315,26 +316,43 @@ async fn run_risc0_prover(
 }
 
 async fn download_and_verify_receipt(cid: &str) -> Result<Receipt, (StatusCode, String)> {
-    let cid_clone = cid.to_string();
+    // let cid_clone = cid.to_string();
     
     // 1. 從 IPFS 下載資料 (維持你原本的 spawn_blocking 邏輯)
-    let receipt_data = tokio::task::spawn_blocking(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
+    // let receipt_data = tokio::task::spawn_blocking(move || {
+    //     let rt = tokio::runtime::Builder::new_current_thread()
+    //         .enable_all()
+    //         .build()
+    //         .unwrap();
             
-        rt.block_on(async {
-            let client = IpfsClient::default();
-            let mut stream = client.cat(&cid_clone);
-            let mut data = Vec::new();
-            use futures::StreamExt;
-            while let Some(chunk) = stream.next().await {
-                data.extend_from_slice(&chunk.unwrap());
-            }
-            data
-        })
-    }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)))?;
+    //     rt.block_on(async {
+    //         let client = IpfsClient::default();
+    //         let mut stream = client.cat(&cid_clone);
+    //         let mut data = Vec::new();
+    //         use futures::StreamExt;
+    //         while let Some(chunk) = stream.next().await {
+    //             data.extend_from_slice(&chunk.unwrap());
+    //         }
+    //         data
+    //     })
+    // }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)))?;
+    
+    // 因為 ipfs-api 相關套件已經太老，前幾天 cores2 yanked 所以這個套件已經不行用了
+    // 由於 ipfs-api 是基於 RUST API 去實作的，所以可以透過 reqwest 直接對 IPFS HTTP API 進行請求來實現下載功能
+    let client = reqwest::Client::new();
+    let url = format!("http://127.0.0.1:5001/api/v0/cat?arg={}", cid);
+
+    let response = client.post(&url)
+        .send()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS cat connection error: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err((StatusCode::NOT_FOUND, format!("IPFS cat failed with status: {}", response.status())));
+    }
+
+    let receipt_data = response.bytes().await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read IPFS data: {}", e)))?;
 
     if receipt_data.is_empty() {
         return Err((StatusCode::NOT_FOUND, "IPFS data is empty".to_string()));
@@ -360,19 +378,36 @@ async fn upload_receipt_to_ipfs(receipt: &Receipt) -> Result<String, (StatusCode
     };
     
     let receipt_data = bincode::serialize(&stored_proof).unwrap();
-    
-    let cid = tokio::task::spawn_blocking(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
+    let client = reqwest::Client::new();
+    let url = "http://127.0.0.1:5001/api/v0/add";
+
+    let part = reqwest::multipart::Part::bytes(receipt_data)
+        .file_name("receipt.bin");
+
+    let response = client.post(url)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS upload connection error: {}", e)))?;
+
+    let res_json: serde_json::Value = response.json().await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to parse IPFS response: {}", e)))?;
+
+    let cid = res_json["Hash"].as_str()
+        .ok_or_else(|| (StatusCode::INTERNAL_SERVER_ERROR, "No Hash found in IPFS response".to_string()))?
+        .to_string();
+    // let cid = tokio::task::spawn_blocking(move || {
+    //     let rt = tokio::runtime::Builder::new_current_thread()
+    //         .enable_all()
+    //         .build()
+    //         .unwrap();
             
-        rt.block_on(async {
-            let client = IpfsClient::default();
-            let res = client.add(std::io::Cursor::new(receipt_data)).await.unwrap();
-            res.hash
-        })
-    }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS upload error: {}", e)))?;
+    //     rt.block_on(async {
+    //         let client = IpfsClient::default();
+    //         let res = client.add(std::io::Cursor::new(receipt_data)).await.unwrap();
+    //         res.hash
+    //     })
+    // }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS upload error: {}", e)))?;
 
     Ok(cid)
 }
