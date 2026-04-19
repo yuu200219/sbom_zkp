@@ -164,7 +164,19 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
     const tempSbomPath = `${file.path}_sbom.json`;
 
     try {
+        // 定義 component 的正規化函式，確保每個 component 都有 bomRef 和 hash
+        const normalize = (c: any) => {
+            // 優先順序：已經有的 bomRef -> 原始的 bom-ref -> 組合名稱
+            c.bomRef = c.bomRef || c['bom-ref'] || `${c.name}@${c.version}`;
+            c.bomRef = c.bomRef.trim(); // 修復：去除前後空格
+            // 補齊 Hash (如果沒有 hash 欄位)
+            if (!c.hash) {
+                const content = `${c.name}${c.version}${c.purl || ''}`;
+                c.hash = crypto.createHash('sha256').update(content).digest('hex');
+            }
+        };
         console.log(`\n[SBOM Service] 正在處理 ${file.originalname}...`);
+        //
 
         // 1. 執行 Syft & 進行 grype 漏洞掃描
         console.log(`[Debug] 執行 syft 生成 SBOM...`);
@@ -175,14 +187,24 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         if (!rawSbom.components) rawSbom.components = [];
 
         // 處理 SBOM，餵所有的套件補齊唯一 Hash, bomRef
-        rawSbom.components.forEach((c: SbomComponent) => {
-            // 建立唯一 id
-            c.bomRef = c['bomRef'] || `${c.name}@${c.version}`;
-            // 檢查 Syft 是否有算出官方 Hash
-            if (c.hash == null || c.hash.length == 0) {
-                // 若沒有 Hash，沿用你之前的邏輯，生成一個強關聯的防篡改 Hash
-                const fallbackContent = `${c.name}@${c.version}${c.purl || ''}`; // hash(name | version | purl)
-                c.hash = crypto.createHash('sha256').update(fallbackContent).digest('hex');
+        if (rawSbom.metadata?.component) {
+            normalize(rawSbom.metadata.component);
+        }
+
+        rawSbom.components?.forEach(normalize);
+
+        // 更新 dependencies 中的 ref 以匹配 normalize 後的 bomRef
+        const allComponents = [
+            ...(rawSbom.metadata?.component ? [rawSbom.metadata.component] : []),
+            ...(rawSbom.components || [])
+        ];
+
+        const refMap = new Map<string, string>();
+        allComponents.forEach(c => {
+            const oldRef = c['bom-ref'];
+            const newRef = c.bomRef;
+            if (oldRef && oldRef !== newRef) {
+                refMap.set(oldRef, newRef);
             }
         });
 
@@ -224,7 +246,11 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
 
         // 3. 建立 preorder graph
         console.log('[Debug] 開始建立 Preorder Graph...]');
+        // console.log('rawSbom.components length:', rawSbom.components?.length);
+        // console.log('rawSbom.metadata.component:', rawSbom.metadata?.component);
+        // console.log('Before preorderTraversal');
         const { preorderComponents, dependencyMap, componentMap } = processor.preorderTraversal(rawSbom);
+        // console.log('After preorderTraversal, preorderComponents length:', preorderComponents.length);
         console.log(`[Debug] Preorder Graph 生成成功，Preorder Components 數量: ${preorderComponents.length}`);
         // 將 Grype 的漏洞資訊整合到 sortedComponents 中
         preorderComponents.forEach((c: any) => {
@@ -253,7 +279,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
                 const cachedRoot = globalMerkleCache.get(fingerprint)!;
                 // 實作 TODO: 即使是快取，也要填入介面規定的 merkleData
                 c.merkleData = globalMerkleCache.get(fingerprint);
-                console.log(`[Debug] Component: ${c.name} | 快取命中。`);
+                // console.log(`[Debug] Component: ${c.name} | 快取命中。`);
                 continue;
             }
             const localLeaves = [
@@ -273,7 +299,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
                 c.merkleData = result;
                 globalMerkleCache.set(fingerprint, result);
 
-                console.log(`[Debug] Component: ${c.name} | Leaves: ${localLeaves.length} | Root: ${c.merkleData.merkleRoot}`);
+                // console.log(`[Debug] Component: ${c.name} | Leaves: ${localLeaves.length} | Root: ${c.merkleData.merkleRoot}`);
 
                 // 如果你想存下每個組件的 DOT 圖，可以用 c.id 作為 key
                 // c.merkleDot = result.dot; 
@@ -328,15 +354,16 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
     } catch (error: any) {
         console.error('[Error]:', error.message);
         res.status(500).json({ success: false, error: error.message });
-    } finally {
-        // 清理暫存檔案
-        try {
-            // if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-            if (fs.existsSync(tempSbomPath)) fs.unlinkSync(tempSbomPath);
-        } catch (cleanupErr) {
-            console.error('[Warn] 暫存檔清理失敗:', cleanupErr);
-        }
     }
+    // finally {
+    //     // 清理暫存檔案
+    //     try {
+    //         // if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    //         if (fs.existsSync(tempSbomPath)) fs.unlinkSync(tempSbomPath);
+    //     } catch (cleanupErr) {
+    //         console.error('[Warn] 暫存檔清理失敗:', cleanupErr);
+    //     }
+    // }
 });
 
 app.listen(PORT, () => {

@@ -383,7 +383,8 @@ async fn upload_receipt_to_ipfs(receipt: &Receipt) -> Result<String, (StatusCode
 
     let part = reqwest::multipart::Part::bytes(receipt_data)
         .file_name("receipt.bin");
-
+    let form = reqwest::multipart::Form::new().part("file", part);
+    
     let response = client.post(url)
         .multipart(form)
         .send()
@@ -408,7 +409,7 @@ async fn upload_receipt_to_ipfs(receipt: &Receipt) -> Result<String, (StatusCode
     //         res.hash
     //     })
     // }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("IPFS upload error: {}", e)))?;
-
+    println!("[-] 證明上傳到 IPFS, CID: {}", cid);
     Ok(cid)
 }
 
@@ -421,7 +422,18 @@ async fn prove_component_recursive(
 ) -> Result<Receipt, (StatusCode, String)> {
     
     // 1. 取得組件詳細資料
-    let comp = tree_data["componentMap"]
+    // println!("[Debug] tree_data keys: {:?}", tree_data.as_object().map(|m| m.keys().collect::<Vec<_>>()));
+    
+    let component_map = tree_data["componentMap"]
+        .as_object()
+        .ok_or((StatusCode::BAD_REQUEST, "componentMap is missing or not an object".to_string()))?;
+
+    // println!("[Debug] comp_id = {:?}", comp_id);
+    // println!("[Debug] component_map len = {}", component_map.len());
+    // println!("[Debug] contains_key = {}", component_map.contains_key(&comp_id));
+    // println!("[Debug] get = {:?}", component_map.get(&comp_id));
+
+    let comp = component_map
         .get(&comp_id)
         .ok_or({
             let err_msg = format!("Component {} not found in componentMap", comp_id);
@@ -478,7 +490,7 @@ async fn prove_component_recursive(
     let mut local_leaves = vec![decode_hex_32(comp_hash_str)];
     local_leaves.extend(children_hashes.clone());
 
-    let local_merkle_root = comp["merkleData"]["root"].as_str()
+    let local_merkle_root = comp["merkleData"]["merkleRoot"].as_str()
         .ok_or((StatusCode::BAD_REQUEST, format!("Component {} missing merkleRoot", comp_name)))?;
 
     let local_merkle_input = MerkleInput {
@@ -549,6 +561,7 @@ async fn handle_prove(
                 prove_duration_ms,
                 root_cid,
             }).into_response()
+            println!("✅ 遞迴證明完成，總耗時: {} ms", prove_duration_ms);
         },
         Err((status, msg)) => {
             eprintln!("[Error] 遞迴證明失敗: {} - {}", status, msg);

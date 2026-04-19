@@ -104,7 +104,7 @@ export class SbomProcessor {
     } {
         const preorderComponents: SbomComponent[] = [];
         const visited = new Set<string>();
-        const getRef = (c: any) => c['bom-ref'] || `${c.name}@${c.version}`;
+        const getRef = (c: any) => (c.bomRef || c['bom-ref'] || `${c.name}@${c.version}`).trim();
         // 1. 正規化：整合所有組件並建立 Lookup Map
         // 包含 metadata.component (根) 與 components 陣列 (子)
         const allRaw = [
@@ -126,12 +126,13 @@ export class SbomProcessor {
             }
 
             // 轉換為你的標準 Interface 格式
+            // console.log(`Processing bom-ref: ${ref}, component: ${c.name}, version: ${c.version}, hash: ${hash}`);
             componentLookup.set(ref, {
                 bomRef: ref,
                 name: c.name,
                 version: c.version,
                 hash: hash,
-                type: c.type || 'library',
+                type: c.type || 'unknown',
                 purl: c.purl || '',
                 license: c.licenses?.[0]?.license?.id || 'Unknown',
                 severity: 'Unknown'
@@ -141,7 +142,7 @@ export class SbomProcessor {
         // 2. 建立相依關係 Map
         const dependencyMap = new Map<string, string[]>();
         rawSbom.dependencies?.forEach((dep: any) => {
-            dependencyMap.set(dep.ref, dep.dependsOn || []);
+            dependencyMap.set(dep.ref.trim(), dep.dependsOn?.map((d: string) => d.trim()) || []);
         });
 
         // 3. 定義前序遞迴 (根 -> 子)

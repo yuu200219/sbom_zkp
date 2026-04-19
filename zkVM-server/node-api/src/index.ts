@@ -59,9 +59,9 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         console.log(`[Node] SBOM 生成成功, Merkle Root: ${preorderComponents[0]?.merkleData?.merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
 
 
-        console.log("[Debug] Root component bomRef:", preorderComponents[0].bomRef);
-        console.log("[Debug] componentMap keys:", Object.keys(componentMap).slice(0, 5));
-        console.log("[Debug] dependencyMap keys:", Object.keys(dependencyMap).slice(0, 5));
+        // console.log("[Debug] Root component bomRef:", preorderComponents[0].bomRef);
+        // console.log("[Debug] componentMap keys:", Object.keys(componentMap).slice(0, 5));
+        // console.log("[Debug] dependencyMap keys:", Object.keys(dependencyMap).slice(0, 5));
         // console.log("[Debug] componentMap first few keys:", Object.keys(Object.fromEntries(componentMap)).slice(0, 3));
 
         console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
@@ -165,8 +165,8 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         console.timeEnd(`Proving-${artifactId}`); // 實驗數據埋點：結束計時
         // 2. 這裡可以同步或非同步執行上鏈交易
         // await submitToBlockchain(artifactId, proof);
+        
         // 3. 自動將 Proof 存檔 (實驗留底)
-
         const storagePath = path.join(process.cwd(), 'proofs');
 
         if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
