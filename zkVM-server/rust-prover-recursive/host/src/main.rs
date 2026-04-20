@@ -67,9 +67,22 @@ struct StoredProof {
 
 // 輔助函式：Hex 轉換邏輯保持不變
 fn decode_hex_32(s: &str) -> [u8; 32] {
-    let bytes = hex::decode(s.replace("0x", "")).expect("Invalid hex");
+    let clean_s = s.replace("0x", "");
+    let bytes = hex::decode(&clean_s).expect("Invalid hex");
     let mut array = [0u8; 32];
-    array.copy_from_slice(&bytes);
+    
+    if bytes.len() == 32 {
+        array.copy_from_slice(&bytes);
+    } else if bytes.len() < 32 {
+        // 如果不足 32 bytes，在前面補 0 (常見於 Ethereum address 轉 32 bytes word)
+        let offset = 32 - bytes.len();
+        array[offset..].copy_from_slice(&bytes);
+        println!("[Warning] Hex string is only {} bytes, padded with zeros: {}", bytes.len(), s);
+    } else {
+        // 如果超過 32 bytes，則截斷
+        array.copy_from_slice(&bytes[..32]);
+        println!("[Warning] Hex string is {} bytes, truncated to 32 bytes: {}", bytes.len(), s);
+    }
     array
 }
 
