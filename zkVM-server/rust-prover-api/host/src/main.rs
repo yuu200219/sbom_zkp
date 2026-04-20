@@ -28,9 +28,20 @@ struct ProveResponse {
 
 // 輔助函式：Hex 轉換邏輯保持不變
 fn decode_hex_32(s: &str) -> [u8; 32] {
-    let bytes = hex::decode(s.replace("0x", "")).expect("Invalid hex");
+    let clean_s = s.replace("0x", "");
+    let bytes = hex::decode(&clean_s).expect("Invalid hex");
     let mut array = [0u8; 32];
-    array.copy_from_slice(&bytes);
+    
+    if bytes.len() == 32 {
+        array.copy_from_slice(&bytes);
+    } else if bytes.len() < 32 {
+        let offset = 32 - bytes.len();
+        array[offset..].copy_from_slice(&bytes);
+        println!("[Warning] Hex string is only {} bytes, padded with zeros: {}", bytes.len(), s);
+    } else {
+        array.copy_from_slice(&bytes[..32]);
+        println!("[Warning] Hex string is {} bytes, truncated to 32 bytes: {}", bytes.len(), s);
+    }
     array
 }
 
