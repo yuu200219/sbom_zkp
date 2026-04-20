@@ -191,6 +191,9 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
             normalize(rawSbom.metadata.component);
         }
 
+        const metadataRootRef = rawSbom.metadata?.component?.bomRef;
+        const metadataRootName = rawSbom.metadata?.component?.name;
+
         rawSbom.components?.forEach(normalize);
 
         // 更新 dependencies 中的 ref 以匹配 normalize 後的 bomRef
@@ -207,6 +210,27 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
                 refMap.set(oldRef, newRef);
             }
         });
+
+        // 額外處理：如果 components 中有跟 metadata.component 同名或同 ref 的，將其 ref 映射到 metadataRootRef
+        if (metadataRootRef) {
+            rawSbom.components?.forEach((c: any) => {
+                if (c.name === metadataRootName || c.bomRef === metadataRootRef) {
+                    const oldRef = c['bom-ref'];
+                    if (oldRef) refMap.set(oldRef, metadataRootRef);
+                }
+            });
+        }
+
+        if (rawSbom.dependencies) {
+            rawSbom.dependencies.forEach((dep: any) => {
+                if (refMap.has(dep.ref)) {
+                    dep.ref = refMap.get(dep.ref);
+                }
+                if (dep.dependsOn) {
+                    dep.dependsOn = dep.dependsOn.map((childRef: string) => refMap.get(childRef) || childRef);
+                }
+            });
+        }
 
         console.log(`[Debug] 執行 Grype 漏洞掃描...`);
         fs.writeFileSync(tempSbomPath, stdout); // 將 Syft 結果寫入暫存檔

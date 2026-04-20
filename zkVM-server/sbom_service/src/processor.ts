@@ -107,9 +107,17 @@ export class SbomProcessor {
         const getRef = (c: any) => (c.bomRef || c['bom-ref'] || `${c.name}@${c.version}`).trim();
 
         // 1. 正規化：整合所有組件並建立 Lookup Map
+        const metadataRoot = rawSbom.metadata?.component;
+        const metadataRootRef = metadataRoot ? getRef(metadataRoot) : null;
+
         const allRaw = [
-            ...(rawSbom.metadata?.component ? [rawSbom.metadata.component] : []),
-            ...(rawSbom.components || [])
+            ...(metadataRoot ? [metadataRoot] : []),
+            ...(rawSbom.components || []).filter((c: any) => {
+                // 如果 metadata 已經有這個組件了 (通常是 lockfile 自己)，就不要重複加進 components
+                if (!metadataRootRef) return true;
+                const ref = getRef(c);
+                return ref !== metadataRootRef && c.name !== metadataRoot.name;
+            })
         ];
 
         const componentLookup = new Map<string, SbomComponent>();
@@ -141,7 +149,12 @@ export class SbomProcessor {
         rawSbom.dependencies?.forEach((dep: any) => {
             const ref = (dep.ref || "").trim();
             if (!ref) return;
-            const children = (dep.dependsOn || []).map((d: string) => d.trim());
+            
+            // 過濾掉自我依賴，並確保 child 在 componentLookup 中
+            const children = (dep.dependsOn || [])
+                .map((d: string) => d.trim())
+                .filter((d: string) => d !== ref); 
+
             dependencyMap.set(ref, children);
             children.forEach((c: string) => allChildRefs.add(c));
         });
