@@ -165,7 +165,7 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         console.timeEnd(`Proving-${artifactId}`); // 實驗數據埋點：結束計時
         // 2. 這裡可以同步或非同步執行上鏈交易
         // await submitToBlockchain(artifactId, proof);
-        
+
         // 3. 自動將 Proof 存檔 (實驗留底)
         const storagePath = path.join(process.cwd(), 'proofs');
 
