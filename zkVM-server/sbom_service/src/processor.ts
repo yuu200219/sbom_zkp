@@ -105,8 +105,8 @@ export class SbomProcessor {
         const preorderComponents: SbomComponent[] = [];
         const visited = new Set<string>();
         const getRef = (c: any) => (c.bomRef || c['bom-ref'] || `${c.name}@${c.version}`).trim();
+
         // 1. 正規化：整合所有組件並建立 Lookup Map
-        // 包含 metadata.component (根) 與 components 陣列 (子)
         const allRaw = [
             ...(rawSbom.metadata?.component ? [rawSbom.metadata.component] : []),
             ...(rawSbom.components || [])
@@ -115,8 +115,6 @@ export class SbomProcessor {
         const componentLookup = new Map<string, SbomComponent>();
         allRaw.forEach(c => {
             const ref = getRef(c);
-
-            // 生成內容雜湊 (如果原本沒有就計算)
             let hash = "";
             if (c.hashes && c.hashes.length > 0) {
                 hash = c.hashes[0].content;
@@ -125,8 +123,6 @@ export class SbomProcessor {
                 hash = crypto.createHash('sha256').update(content).digest('hex');
             }
 
-            // 轉換為你的標準 Interface 格式
-            // console.log(`Processing bom-ref: ${ref}, component: ${c.name}, version: ${c.version}, hash: ${hash}`);
             componentLookup.set(ref, {
                 bomRef: ref,
                 name: c.name,
@@ -139,37 +135,78 @@ export class SbomProcessor {
             });
         });
 
-        // 2. 建立相依關係 Map
+        // 2. 建立相依關係 Map，並紀錄所有被依賴過的子節點
         const dependencyMap = new Map<string, string[]>();
+        const allChildRefs = new Set<string>();
         rawSbom.dependencies?.forEach((dep: any) => {
-            dependencyMap.set(dep.ref.trim(), dep.dependsOn?.map((d: string) => d.trim()) || []);
+            const ref = (dep.ref || "").trim();
+            if (!ref) return;
+            const children = (dep.dependsOn || []).map((d: string) => d.trim());
+            dependencyMap.set(ref, children);
+            children.forEach((c: string) => allChildRefs.add(c));
         });
 
-        // 3. 定義前序遞迴 (根 -> 子)
+        // 3. 建立虛擬根節點 (Virtual Root) 並重新串接依賴關係
+        // 將 lockfile 接在 Virtual Root 下，並將其他頂層元件接在 lockfile 下
+        const rootComp = rawSbom.metadata?.component;
+        let finalRootRef = "";
+
+        if (rootComp) {
+            const lockfileRef = getRef(rootComp);
+            const virtualRootRef = "virtual-root";
+
+            // 建立虛擬根節點 (例如：[Project: My-App])
+            const virtualRoot: SbomComponent = {
+                bomRef: virtualRootRef,
+                name: "Project-Root",
+                version: "1.0.0",
+                hash: crypto.createHash('sha256').update("virtual-root").digest('hex'),
+                type: "project",
+                purl: "",
+                license: "Unknown",
+                severity: "Unknown"
+            };
+            componentLookup.set(virtualRootRef, virtualRoot);
+            
+            // 虛擬根的唯一子節點是 lockfile
+            dependencyMap.set(virtualRootRef, [lockfileRef]);
+
+            // 找出原本 SBOM 中沒被任何人依賴的「頂層套件」(孤立森林的根)
+            const topLevelPackageRefs: string[] = [];
+            for (const ref of componentLookup.keys()) {
+                // 排除虛擬根、排除 lockfile、且沒被任何人依賴
+                if (ref !== virtualRootRef && ref !== lockfileRef && !allChildRefs.has(ref)) {
+                    topLevelPackageRefs.push(ref);
+                }
+            }
+
+            // 將這些頂層套件接在 lockfile 之下
+            const existingLockfileDeps = dependencyMap.get(lockfileRef) || [];
+            dependencyMap.set(lockfileRef, Array.from(new Set([...existingLockfileDeps, ...topLevelPackageRefs])));
+
+            finalRootRef = virtualRootRef;
+        }
+
+        // 4. 定義前序遞迴 (根 -> 子)
         const traverse = (ref: string) => {
             if (visited.has(ref)) return;
 
             const comp = componentLookup.get(ref);
             if (comp) {
                 visited.add(ref);
-                preorderComponents.push(comp); // 先加入自己
+                preorderComponents.push(comp);
 
-                // 遞迴處理子節點
                 const childrenRefs = dependencyMap.get(ref) || [];
-                // 建議 sort 子節點以保證每次生成的順序（及之後的 Merkle Root）一致
                 [...childrenRefs].sort().forEach(childRef => traverse(childRef));
             }
         };
 
-        // 4. 從根節點 (Root) 開始啟動
-        const rootComp = rawSbom.metadata?.component;
-        if (rootComp) {
-            const rootRef = getRef(rootComp); // 確保這裡拿到的跟 lookup 裡存的一模一樣
-            traverse(rootRef);
+        // 5. 從最終根節點開始啟動
+        if (finalRootRef) {
+            traverse(finalRootRef);
         }
 
-        // 5. 處理「孤立節點」 (不在依賴鏈中，但存在於 components 陣列裡)
-        // 這樣能保證所有元件都被包含在內，且順序穩定
+        // 6. 防禦性處理：處理任何仍然孤立的節點
         Array.from(componentLookup.keys()).sort().forEach(ref => {
             if (!visited.has(ref)) {
                 traverse(ref);

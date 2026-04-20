@@ -545,15 +545,36 @@ async fn handle_prove(
         None => return (StatusCode::BAD_REQUEST, "Root component missing 'bomRef'").into_response(),
     };
 
+    // 取得真正的起始節點：Project-Root 的子節點 (即 lockfile)
+    let start_node_id = if root_id == "virtual-root" {
+        tree_data["dependencyMap"]["virtual-root"]
+            .as_array()
+            .and_then(|deps| deps.get(0))
+            .and_then(|v| v.as_str())
+            .unwrap_or(&root_id)
+            .to_string()
+    } else {
+        root_id.clone()
+    };
+
+    println!("[-] 起始證明節點: {}", start_node_id);
+
     let mut receipt_cache = HashMap::new();
 
-    // 啟動遞迴證明
-    match prove_component_recursive(root_id, state.clone(), &tree_data, &mut receipt_cache).await {
+    // 啟動遞迴證明 (從 lockfile 開始)
+    match prove_component_recursive(start_node_id.clone(), state.clone(), &tree_data, &mut receipt_cache).await {
         Ok(final_receipt) => {
             let prove_duration_ms = start_calc.elapsed().as_millis();
-            // 這裡從全域 map 拿最後的 root CID
-            let root_hash_str = tree_data["components"][0]["hash"].as_str().unwrap();
-            let root_cid = state.ipfs_map.read().unwrap().get(root_hash_str).cloned();
+            
+            // 取得該起始節點的 hash 與 CID
+            let start_node_hash_str = match tree_data["componentMap"].get(&start_node_id).and_then(|n| n["hash"].as_str()) {
+                Some(h) => h,
+                None => return (StatusCode::INTERNAL_SERVER_ERROR, "Start node hash missing or node not found").into_response(),
+            };
+
+            let root_cid = state.ipfs_map.read().unwrap().get(start_node_hash_str).cloned();
+
+            println!("✅ 遞迴證明完成，總耗時: {} ms", prove_duration_ms);
 
             Json(ProveResponse {
                 proof: hex::encode(bincode::serialize(&final_receipt.inner).unwrap()),
@@ -561,7 +582,6 @@ async fn handle_prove(
                 prove_duration_ms,
                 root_cid,
             }).into_response()
-            println!("✅ 遞迴證明完成，總耗時: {} ms", prove_duration_ms);
         },
         Err((status, msg)) => {
             eprintln!("[Error] 遞迴證明失敗: {} - {}", status, msg);
