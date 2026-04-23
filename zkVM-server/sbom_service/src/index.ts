@@ -151,7 +151,7 @@ const SEVERITY_RANK: Record<string, number> = {
 //     return nodes;
 // }
 
-app.use(express.json());
+app.use(express.json({ limit: '500mb' }));
 // ----------------------------------------
 
 app.post('/generate', upload.single('file'), async (req: Request, res: Response) => {
@@ -181,7 +181,12 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         // 1. 執行 Syft & 進行 grype 漏洞掃描
         console.log(`[Debug] 執行 syft 生成 SBOM...`);
         const command = `syft ${file.path} -o cyclonedx-json`;
-        const stdout = execSync(command, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], shell: '/bin/bash' });
+        const stdout = execSync(command, {
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: '/bin/bash',
+            maxBuffer: 500 * 1024 * 1024 // 允許最高 500MB 的輸出
+        });
         const rawSbom = JSON.parse(stdout);
         console.log(`[Debug] syft 完成生成 SBOM`);
         if (!rawSbom.components) rawSbom.components = [];
@@ -241,7 +246,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         const grypeStdout = execSync(grypeCommand, {
             encoding: 'utf-8',
             shell: '/bin/bash',
-            maxBuffer: 50 * 1024 * 1024 // 允許最高 50MB 的輸出
+            maxBuffer: 500 * 1024 * 1024 // 允許最高 500MB 的輸出
         });
 
         const grypeResult = JSON.parse(grypeStdout);
@@ -355,7 +360,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
 
             // 寫入 Dependency Tree
             if (dependencyDot) {
-                fs.writeFileSync(path.join(outputDir, 'dependency_tree.dot'), dependencyDot);
+                fs.writeFileSync(path.join(outputDir, `${file.originalname}_dependency_tree.dot`), dependencyDot);
             }
 
             console.log(`[Debug] Dependency Tree 已生成於 ${outputDir}`);

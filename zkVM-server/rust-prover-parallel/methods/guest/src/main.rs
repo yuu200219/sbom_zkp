@@ -61,7 +61,7 @@ pub fn main() {
     // 驗證 2：驗證套件安全性
     // ==========================================
     let mut is_safe = false;
-    if comp_input.severity == "Unknown" || comp_input.severity == "Low" || comp_input.severity == "Medium" || comp_input.severity == "High" {
+    if comp_input.severity == "Unknown" || comp_input.severity == "Low" || comp_input.severity == "Medium" {
         is_safe = true;
     }
     assert!(

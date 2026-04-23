@@ -7,7 +7,6 @@ pub struct ComponentInput {
     pub version: String,
     pub license: String,
     pub severity: String,
-    pub comp_type: String, // 新增：用於區分 virtual-batch
     pub dependency_hashes: Vec<[u8; 32]>,
 }
 

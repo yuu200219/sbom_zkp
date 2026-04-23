@@ -164,7 +164,8 @@ async fn main() {
 
     // 建立路由
     let app = Router::new()
-        .route("/prove", post(handle_prove));
+        .route("/prove", post(handle_prove))
+        .layer(axum::extract::DefaultBodyLimit::max(500 * 1024 * 1024)); // 500MB
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
     println!("✅ ZK Prover Server (Axum)  運行在 {}", addr);

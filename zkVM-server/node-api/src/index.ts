@@ -23,7 +23,7 @@ const SBOM_SERVICE_URL = process.env.SBOM_SERVICE_URL || 'http://localhost:3002'
 
 const mapToObj = (map: Map<any, any>) => Object.fromEntries(map);
 
-app.use(express.json({ limit: '50mb' })); // SBOM 可能很大，放寬限制
+app.use(express.json({ limit: '500mb' })); // SBOM 可能很大，放寬限制
 
 app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, res: Response) => {
 
@@ -41,7 +41,9 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         form.append('file', fs.createReadStream(file.path), file.originalname);
 
         const sbomRes = await axios.post<any>(`${SBOM_SERVICE_URL}/generate`, form, {
-            headers: { ...form.getHeaders() }
+            headers: { ...form.getHeaders() },
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
         });
         const {
             preorderComponents = [],
@@ -75,7 +77,9 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             headers: {
                 'Content-Type': 'application/json'
             },
-            timeout: 0
+            timeout: 0,
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
         });
 
         const { proof, journal, rootCid: root_cid, prove_duration_ms } = response.data;
@@ -157,6 +161,9 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
             artifactId,
             treeData: treeData
+        }, {
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
         });
 
         const merkleRoot = treeData.merkleRoot;

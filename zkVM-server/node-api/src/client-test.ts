@@ -3,6 +3,7 @@ import axios from 'axios';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import FormData from 'form-data';
+import { lock } from 'ethers';
 
 async function testGenerateAndProve(filePath: string, artifactId: string) {
     // 檢查檔案是否存在
@@ -58,7 +59,15 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
 // 測試案例 A: Python 需求檔
 const pythonManifest = '../../sbom-risc0/sbom/flask_server/poetry.lock';
 const nodeLockfile = 'package-lock.json';
-testGenerateAndProve(pythonManifest, "python-app-v1");
+const geminiCliLockfile = '../../sbom-risc0/sbom/gemini-cli/package-lock.json';
+const goMod = '../../sbom-risc0/sbom/client-go/go.mod';
+const flaskServerLockfile = '../../sbom-risc0/sbom/flask/uv.lock';
+const awsCDKLockfile = '../../sbom-risc0/sbom/aws-cdk/yarn.lock';
+testGenerateAndProve(awsCDKLockfile, "aws-cdk-v2.250.0");
+// testGenerateAndProve(flaskServerLockfile, "flask-3.1.3");
+// testGenerateAndProve(goMod, "client-go-v0.35.4");
+// testGenerateAndProve(geminiCliLockfile, "Gemini CLI v0.38.2");
+// testGenerateAndProve(pythonManifest, "python-app-v1");
 // testGenerateAndProve(nodeLockfile, "node-app-v1");
 
 // 測試案例 B: Node.js Lockfile (如果有的話)

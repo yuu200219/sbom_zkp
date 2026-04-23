@@ -107,16 +107,26 @@ export class SbomProcessor {
         const getRef = (c: any) => (c.bomRef || c['bom-ref'] || `${c.name}@${c.version}`).trim();
 
         // 1. 正規化：整合所有組件並建立 Lookup Map
+        // 注意：根據最新需求，Lockfile 不再作為獨立組件參與 Graph，
+        // 而是由 Virtual Root (Project Root) 直接連接到各個頂層依賴。
         const metadataRoot = rawSbom.metadata?.component;
         const metadataRootRef = metadataRoot ? getRef(metadataRoot) : null;
 
         const allRaw = [
-            ...(metadataRoot ? [metadataRoot] : []),
+            // 不再包含 metadataRoot (通常是 lockfile)
             ...(rawSbom.components || []).filter((c: any) => {
-                // 如果 metadata 已經有這個組件了 (通常是 lockfile 自己)，就不要重複加進 components
-                if (!metadataRootRef) return true;
                 const ref = getRef(c);
-                return ref !== metadataRootRef && c.name !== metadataRoot.name;
+                const name = (c.name || "").toLowerCase();
+                const type = (c.type || "").toLowerCase();
+
+                // 1. 排除與 metadataRoot 相同的組件 (bom-ref 或名稱匹配)
+                if (metadataRootRef && ref === metadataRootRef) return false;
+                if (metadataRoot && name === metadataRoot.name.toLowerCase()) return false;
+
+                // 2. 額外排除：類型為 'file' 且附檔名為 .lock 的組件 (Syft 有時會重複列出)
+                if (type === 'file' && (name.endsWith('.lock') || name.endsWith('.json'))) return false;
+
+                return true;
             })
         ];
 
@@ -149,56 +159,103 @@ export class SbomProcessor {
         rawSbom.dependencies?.forEach((dep: any) => {
             const ref = (dep.ref || "").trim();
             if (!ref) return;
-            
+
             // 過濾掉自我依賴，並確保 child 在 componentLookup 中
             const children = (dep.dependsOn || [])
                 .map((d: string) => d.trim())
-                .filter((d: string) => d !== ref); 
+                .filter((d: string) => d !== ref);
 
             dependencyMap.set(ref, children);
-            children.forEach((c: string) => allChildRefs.add(c));
+
+            // 注意：如果這個父節點不是 Lockfile，才將其子節點加入 allChildRefs。
+            // 這樣一來，原本只被 Lockfile 依賴的套件就會被視為「沒被任何人依賴」，
+            // 從而成為 Top-level packages 並接在 Virtual Root 下。
+            if (ref !== metadataRootRef) {
+                children.forEach((c: string) => allChildRefs.add(c));
+            }
         });
 
         // 3. 建立虛擬根節點 (Virtual Root) 並重新串接依賴關係
-        // 將 lockfile 接在 Virtual Root 下，並將其他頂層元件接在 lockfile 下
-        const rootComp = rawSbom.metadata?.component;
-        let finalRootRef = "";
+        // 現在將所有頂層元件 (Top-level packages) 直接接在 Virtual Root 下
+        const virtualRootRef = metadataRootRef;
 
-        if (rootComp) {
-            const lockfileRef = getRef(rootComp);
-            const virtualRootRef = "virtual-root";
-
-            // 建立虛擬根節點 (例如：[Project: My-App])
-            const virtualRoot: SbomComponent = {
-                bomRef: virtualRootRef,
-                name: "Project-Root",
-                version: "1.0.0",
-                hash: crypto.createHash('sha256').update("virtual-root").digest('hex'),
-                type: "project",
-                purl: "",
-                license: "Unknown",
-                severity: "Unknown"
-            };
-            componentLookup.set(virtualRootRef, virtualRoot);
-            
-            // 虛擬根的唯一子節點是 lockfile
-            dependencyMap.set(virtualRootRef, [lockfileRef]);
-
-            // 找出原本 SBOM 中沒被任何人依賴的「頂層套件」(孤立森林的根)
-            const topLevelPackageRefs: string[] = [];
-            for (const ref of componentLookup.keys()) {
-                // 排除虛擬根、排除 lockfile、且沒被任何人依賴
-                if (ref !== virtualRootRef && ref !== lockfileRef && !allChildRefs.has(ref)) {
-                    topLevelPackageRefs.push(ref);
-                }
-            }
-
-            // 將這些頂層套件接在 lockfile 之下
-            const existingLockfileDeps = dependencyMap.get(lockfileRef) || [];
-            dependencyMap.set(lockfileRef, Array.from(new Set([...existingLockfileDeps, ...topLevelPackageRefs])));
-
-            finalRootRef = virtualRootRef;
+        // 嘗試從 metadata 取得專案名稱，如果 metadata 是 file 類型則使用預設名稱
+        let projectName = "Project-Root";
+        let projectVersion = "1.0.0";
+        if (metadataRoot && metadataRoot.type !== 'file') {
+            projectName = metadataRoot.name;
+            projectVersion = metadataRoot.version || "1.0.0";
         }
+
+        const virtualRoot: SbomComponent = {
+            bomRef: virtualRootRef,
+            name: projectName,
+            version: projectVersion,
+            hash: crypto.createHash('sha256').update("virtual-root").digest('hex'),
+            type: "project",
+            purl: "",
+            license: "Unknown",
+            severity: "Unknown"
+        };
+        componentLookup.set(virtualRootRef, virtualRoot);
+
+        // 找出原本 SBOM 中沒被任何人依賴的「頂層套件」(孤立森林的根)
+        const topLevelPackageRefs: string[] = [];
+        for (const ref of componentLookup.keys()) {
+            // 排除虛擬根、且沒被任何人依賴
+            if (ref !== virtualRootRef && !allChildRefs.has(ref)) {
+                topLevelPackageRefs.push(ref);
+            }
+        }
+
+        // 將這些頂層套件接在 Virtual Root 之下
+        dependencyMap.set(virtualRootRef, topLevelPackageRefs);
+
+        const finalRootRef = virtualRootRef;
+
+        // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
+        // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
+        const MAX_CHILDREN = 10;
+        const balanceTree = (ref: string) => {
+            let children = dependencyMap.get(ref) || [];
+            let iteration = 0;
+
+            // 使用 while 迴圈確保即使批次節點超過限制，也會被再次分層 (Batching the batches)
+            while (children.length > MAX_CHILDREN) {
+                console.log(`[Balance] 節點 ${ref} 子節點過多 (${children.length}), 正在進行第 ${iteration + 1} 層分層...`);
+                const batchedChildren: string[] = [];
+                for (let i = 0; i < children.length; i += MAX_CHILDREN) {
+                    const chunk = children.slice(i, i + MAX_CHILDREN);
+                    const batchId = `batch-${ref}-iter${iteration}-${i}`;
+
+                    // 虛擬批次節點的雜湊由其子節點雜湊組合而成
+                    const batchContent = chunk.map(cRef => componentLookup.get(cRef)?.hash || "").sort().join('|');
+                    const batchHash = crypto.createHash('sha256').update(batchContent).digest('hex');
+
+                    const batchNode: SbomComponent = {
+                        bomRef: batchId,
+                        name: `Batch-L${iteration}-${Math.floor(i / MAX_CHILDREN) + 1}`,
+                        version: "1.0.0",
+                        hash: batchHash,
+                        type: "virtual-batch",
+                        purl: "",
+                        license: "Unknown",
+                        severity: "Unknown"
+                    };
+
+                    componentLookup.set(batchId, batchNode);
+                    dependencyMap.set(batchId, chunk);
+                    batchedChildren.push(batchId);
+                }
+                dependencyMap.set(ref, batchedChildren);
+                children = batchedChildren; // 進入下一輪 while 檢查
+                iteration++;
+            }
+        };
+
+        // 對所有原始組件進行檢查與平衡
+        const originalRefs = Array.from(componentLookup.keys());
+        originalRefs.forEach(ref => balanceTree(ref));
 
         // 4. 定義前序遞迴 (根 -> 子)
         const traverse = (ref: string) => {

@@ -90,20 +90,10 @@ async fn run_risc0_prover(
 
         let env = env_builder.build().unwrap();
 
-        // 4. 呼叫 Prover 進行證明
-        let prover = default_prover();
-        let prove_info = prover.prove(env, GUEST_CODE_FOR_ZKP_ELF)
-            .map_err(|e| format!("Prover prove failed: {}", e))?;
-
-        // 核心修改：選擇性壓縮
-        // 只有 Batch 節點需要壓縮，以防止體積在遞迴過程中無限膨脹
-        if comp_input.comp_type == "virtual-batch" {
-            println!("[-] 檢測到聚合節點 ({})，執行證明壓縮...", comp_input.name);
-            prover.compress(&risc0_zkvm::ProverOpts::succinct(), &prove_info.receipt)
-                .map_err(|e| format!("Prover compression failed: {}", e))
-        } else {
-            Ok(prove_info.receipt)
-        }
+        // 4. 呼叫你原本使用的 Prover
+        default_prover()
+            .prove(env, GUEST_CODE_FOR_ZKP_ELF)
+            .map(|res| res.receipt)
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)))?
@@ -269,7 +259,6 @@ async fn prove_component_recursive(
         hash: decode_hex_32(comp_hash_str),
         license: comp["license"].as_str().unwrap_or("").to_string(),
         severity: comp["severity"].as_str().unwrap_or("").to_string(),
-        comp_type: comp["type"].as_str().unwrap_or("unknown").to_string(),
         dependency_hashes: children_hashes,
     };
 
