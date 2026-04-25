@@ -215,7 +215,7 @@ export class SbomProcessor {
 
         // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
         // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
-        const MAX_CHILDREN = 5;
+        const MAX_CHILDREN = 15;
         const balanceTree = (ref: string) => {
             let children = dependencyMap.get(ref) || [];
             let iteration = 0;
