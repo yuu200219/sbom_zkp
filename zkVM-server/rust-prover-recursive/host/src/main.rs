@@ -10,8 +10,10 @@ use std::collections::HashMap;
 use reqwest;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Semaphore;
-use async_recursion::async_recursion
+use async_recursion::async_recursion;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::sync::Mutex;
+use std::collections::HashSet;
 
 #[derive(Deserialize)]
 struct ProveRequest {
@@ -165,6 +167,7 @@ async fn prove_component_recursive(
     tree_data: &Value,
     receipt_cache: &mut HashMap<String, Receipt>,
     pb: ProgressBar,
+    visited_pb: Arc<Mutex<HashSet<String>>>,
 ) -> Result<Receipt, (StatusCode, String)> {
     let component_map = tree_data["componentMap"].as_object()
         .ok_or((StatusCode::BAD_REQUEST, "componentMap missing".to_string()))?;
@@ -173,8 +176,13 @@ async fn prove_component_recursive(
     let comp_hash_str = comp["hash"].as_str().unwrap().to_string();
     let comp_name = comp["name"].as_str().unwrap_or("unknown");
 
+    let is_first_visit = {
+        let mut visited = visited_pb.lock().unwrap();
+        visited.insert(comp_hash_str.clone())
+    };
+
     if let Some(r) = receipt_cache.get(&comp_hash_str) {
-        pb.inc(1);
+        if is_first_visit { pb.inc(1); }
         return Ok(r.clone());
     }
 
@@ -194,7 +202,7 @@ async fn prove_component_recursive(
                 // 已完成，下載並回傳
                 let receipt = download_and_verify_receipt(&status).await?;
                 receipt_cache.insert(comp_hash_str.clone(), receipt.clone());
-                pb.inc(1);
+                if is_first_visit { pb.inc(1); }
                 return Ok(receipt);
             }
         } else {
@@ -213,7 +221,7 @@ async fn prove_component_recursive(
     if let Some(deps) = tree_data["dependencyMap"].get(&comp_id).and_then(|v| v.as_array()) {
         for dep_id_value in deps {
             let dep_id = dep_id_value.as_str().unwrap().to_string();
-            let child_receipt = prove_component_recursive(dep_id.clone(), state.clone(), tree_data, receipt_cache).await?;
+            let child_receipt = prove_component_recursive(dep_id.clone(), state.clone(), tree_data, receipt_cache, pb.clone(), visited_pb.clone()).await?;
             assumptions_to_add.push(child_receipt);
             let child_hash_str = tree_data["componentMap"][&dep_id]["hash"].as_str().unwrap();
             children_hashes.push(decode_hex_32(child_hash_str));
@@ -252,7 +260,7 @@ async fn prove_component_recursive(
     };
 
     // println!("[-] 正在證明套件: {}", comp_name);
-    pb.set_message(format!("證明中: {}", comp_name));
+    pb.set_message(format!("證明中: {} ({})", comp_name, &comp_hash_str[0..6]));
     let receipt_result = run_risc0_prover(state.clone(), comp_input, local_merkle_input, assumptions_to_add).await;
 
     match receipt_result {
@@ -264,6 +272,7 @@ async fn prove_component_recursive(
                 map.insert(comp_hash_str.clone(), cid); // 用真正的 CID 替換 "PROCESSING"
             }
             receipt_cache.insert(comp_hash_str, receipt.clone());
+            if is_first_visit { pb.inc(1); }
             Ok(receipt)
         }
         Err(e) => {
@@ -299,13 +308,16 @@ async fn handle_prove(State(state): State<Arc<CompState>>, Json(payload): Json<P
     // 進度條初始化
     let total_count = components.len() as u64;
     let pb = ProgressBar::new(total_count);
+    
     pb.set_style(ProgressStyle::with_template(
         "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta}) {msg}"
     ).unwrap().progress_chars("#>-"));
     pb.set_message("正在準備證明樹...");
 
+    let visited_pb = Arc::new(Mutex::new(HashSet::new()));
+
     let mut receipt_cache = HashMap::new();
-    match prove_component_recursive(root_id.clone(), state.clone(), &tree_data, &mut receipt_cache).await {
+    match prove_component_recursive(root_id.clone(), state.clone(), &tree_data, &mut receipt_cache, pb.clone(), visited_pb.clone()).await {
         Ok(final_receipt) => {
             pb.finish_with_message("證明生成完成！");
             let prove_duration_ms = start_calc.elapsed().as_millis();
