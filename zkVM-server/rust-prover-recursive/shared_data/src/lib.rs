@@ -1,18 +1,29 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, PartialOrd)]
+pub enum Severity {
+    Unknown = 0,
+    Negligible = 1,
+    Low = 2,
+    Medium = 3,
+    High = 4,
+    Critical = 5,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ComponentInput {
     pub name: String,
     pub hash: [u8; 32],
     pub version: String,
     pub license: String,
-    pub severity: String,
-    pub comp_type: String, // 新增：用於區分 virtual-batch
+    pub severity: Severity,
+    pub comp_type: String,
     pub dependency_hashes: Vec<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MerkleInput {
-    pub root: [u8; 32],                 // 宣稱的 Merkle Root
-    pub all_leaf_hashes: Vec<[u8; 32]>, // SBOM 中所有的組件雜湊 (按順序)
+    pub root: [u8; 32],
+    pub path_elements: Vec<[u8; 32]>,
+    pub path_indices: Vec<u32>, // 0 for left, 1 for right
 }
