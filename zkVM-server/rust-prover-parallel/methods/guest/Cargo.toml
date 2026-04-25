@@ -15,7 +15,5 @@ shared_data = { path = "../../shared_data" }
 
 serde = { version = "1.0", features = ["derive"] }
 
-# 注意：在 RISC Zero 裡，sha2 會自動調用加速器優化
 sha2 = { version = "0.10", default-features = false }
-
 hex = { version = "0.4", default-features = false }

@@ -1,6 +1,6 @@
 #![no_main]
 use risc0_zkvm::guest::env;
-use sha2::{Digest, Sha256};
+use risc0_zkvm::sha::{Impl, Sha256, Digest};
 use shared_data::{ComponentInput, MerkleInput};
 
 risc0_zkvm::guest::entry!(main);
@@ -20,11 +20,12 @@ const LICENSE_WHITELIST: &[&str] = &[
 ];
 
 fn sha256_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
-    let mut h = Sha256::new();
-    h.update(left);
-    h.update(right);
+    let mut combined = [0u8; 64];
+    combined[..32].copy_from_slice(left);
+    combined[32..].copy_from_slice(right);
+    let res = Impl::hash_bytes(&combined);
     let mut arr = [0u8; 32];
-    arr.copy_from_slice(&h.finalize());
+    arr.copy_from_slice(res.as_bytes());
     arr
 }
 

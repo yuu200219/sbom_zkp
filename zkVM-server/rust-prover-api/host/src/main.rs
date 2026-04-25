@@ -1,4 +1,4 @@
-use core::MerkleInput; // 確保你的資料結構已定義在某處
+use shared_core::MerkleInput; // 確保你的資料結構已定義在某處
 use axum::{routing::post, Json, Router, response::IntoResponse, http::StatusCode};
 use methods::{GUEST_CODE_FOR_ZKP_ELF, GUEST_CODE_FOR_ZKP_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};

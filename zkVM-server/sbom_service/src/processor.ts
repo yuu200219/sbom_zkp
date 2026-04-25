@@ -215,7 +215,7 @@ export class SbomProcessor {
 
         // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
         // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
-        const MAX_CHILDREN = 10;
+        const MAX_CHILDREN = 5;
         const balanceTree = (ref: string) => {
             let children = dependencyMap.get(ref) || [];
             let iteration = 0;
@@ -283,11 +283,51 @@ export class SbomProcessor {
             }
         });
 
+        this.printTreeStats(finalRootRef, dependencyMap, componentLookup);
+
         return {
             preorderComponents,
             dependencyMap,
             componentMap: componentLookup
         };
+    }
+
+    private printTreeStats(rootRef: string, dependencyMap: Map<string, string[]>, componentMap: Map<string, SbomComponent>) {
+        let batchNodes = 0;
+        let leafNodes = 0;
+        const visited = new Set<string>();
+
+        const getDepth = (ref: string, currentDepth: number): number => {
+            if (visited.has(ref)) return 0; // Avoid cycles if any
+            visited.add(ref);
+
+            const children = dependencyMap.get(ref) || [];
+            if (children.length === 0) {
+                leafNodes++;
+                return currentDepth;
+            }
+            let maxSubDepth = currentDepth;
+            for (const child of children) {
+                maxSubDepth = Math.max(maxSubDepth, getDepth(child, currentDepth + 1));
+            }
+            return maxSubDepth;
+        };
+
+        componentMap.forEach(c => {
+            if (c.type === 'virtual-batch') batchNodes++;
+        });
+
+        const maxDepth = getDepth(rootRef, 0);
+
+        console.log("\n========================================");
+        console.log("📊 SBOM Dependency Tree Statistics");
+        console.log("----------------------------------------");
+        console.log(`- Total Nodes (Inc. Batches): ${componentMap.size}`);
+        console.log(`- Virtual Batch Nodes:       ${batchNodes}`);
+        console.log(`- Actual Components:         ${componentMap.size - batchNodes}`);
+        console.log(`- Leaf Nodes (No Deps):      ${leafNodes}`);
+        console.log(`- Tree Max Depth:            ${maxDepth}`);
+        console.log("========================================\n");
     }
 
 
