@@ -1,0 +1,31 @@
+digraph DependencyGraph {
+    node [fontname="Arial", fontsize=10, shape=record];
+    rankdir=LR;
+    "a06f3092a674c55c" [label="{ Project-Root | 1.0.0 | 8166b0 }", style=filled, fillcolor="#e1f5fe"];
+    "a06f3092a674c55c" -> "pkg:pypi/atomicwrites@1.4.1?package-id=70c3ed07481ee2a9";
+    "a06f3092a674c55c" -> "pkg:pypi/colorama@0.4.6?package-id=c3db38b3b28c2780";
+    "a06f3092a674c55c" -> "pkg:pypi/coverage@7.2.7?package-id=d507e6ae0bce9286";
+    "a06f3092a674c55c" -> "pkg:pypi/exceptiongroup@1.3.0?package-id=e41cd4b725ae4205";
+    "a06f3092a674c55c" -> "pkg:pypi/iniconfig@2.1.0?package-id=76bccc40433dcb98";
+    "a06f3092a674c55c" -> "pkg:pypi/packaging@24.1?package-id=f2698a2afeaac4a3";
+    "a06f3092a674c55c" -> "pkg:pypi/pluggy@1.6.0?package-id=de64169c9d8a4b95";
+    "a06f3092a674c55c" -> "pkg:pypi/pytest@8.1.1?package-id=7c61dfd389450ea2";
+    "a06f3092a674c55c" -> "pkg:pypi/pytest-cov@5.0.0?package-id=49728a56391c85ea";
+    "a06f3092a674c55c" -> "pkg:pypi/tomli@2.2.1?package-id=bbd18826d2388c92";
+    "a06f3092a674c55c" -> "pkg:pypi/typing-extensions@4.15.0?package-id=5953597aeff00ca4";
+    "a06f3092a674c55c" -> "pkg:pypi/wheel@0.46.3?package-id=67ee85c72a46e0a1";
+    "a06f3092a674c55c" -> "66a7cf59fe12d23e";
+    "66a7cf59fe12d23e" [label="{ /app/uploads/requirements-dev-lock.txt | undefined | 9273ff }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/atomicwrites@1.4.1?package-id=70c3ed07481ee2a9" [label="{ atomicwrites | 1.4.1 | 14db85 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/colorama@0.4.6?package-id=c3db38b3b28c2780" [label="{ colorama | 0.4.6 | 36f2b3 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/coverage@7.2.7?package-id=d507e6ae0bce9286" [label="{ coverage | 7.2.7 | c425f3 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/exceptiongroup@1.3.0?package-id=e41cd4b725ae4205" [label="{ exceptiongroup | 1.3.0 | c12661 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/iniconfig@2.1.0?package-id=76bccc40433dcb98" [label="{ iniconfig | 2.1.0 | c65921 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/packaging@24.1?package-id=f2698a2afeaac4a3" [label="{ packaging | 24.1 | 32dc4f }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/pluggy@1.6.0?package-id=de64169c9d8a4b95" [label="{ pluggy | 1.6.0 | 77f834 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/pytest-cov@5.0.0?package-id=49728a56391c85ea" [label="{ pytest-cov | 5.0.0 | 0e52ba }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/pytest@8.1.1?package-id=7c61dfd389450ea2" [label="{ pytest | 8.1.1 | 72bacd }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/tomli@2.2.1?package-id=bbd18826d2388c92" [label="{ tomli | 2.2.1 | 7dc9ec }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/typing-extensions@4.15.0?package-id=5953597aeff00ca4" [label="{ typing-extensions | 4.15.0 | 9eba94 }", style=filled, fillcolor="#e1f5fe"];
+    "pkg:pypi/wheel@0.46.3?package-id=67ee85c72a46e0a1" [label="{ wheel | 0.46.3 | 70a3c5 }", style=filled, fillcolor="#e1f5fe"];
+}
