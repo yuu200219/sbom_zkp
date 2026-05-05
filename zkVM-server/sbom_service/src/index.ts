@@ -156,6 +156,7 @@ app.use(express.json({ limit: '500mb' }));
 
 app.post('/generate', upload.single('file'), async (req: Request, res: Response) => {
     const file = req.file;
+    const { projectName, version } = req.body;
     const startSbom = performance.now();
 
     if (!file) return res.status(400).json({ success: false, error: '未上傳任何檔案' });
@@ -278,7 +279,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         // console.log('rawSbom.components length:', rawSbom.components?.length);
         // console.log('rawSbom.metadata.component:', rawSbom.metadata?.component);
         // console.log('Before preorderTraversal');
-        const { preorderComponents, dependencyMap, componentMap } = processor.preorderTraversal(rawSbom);
+        const { preorderComponents, dependencyMap, componentMap } = processor.preorderTraversal(rawSbom, projectName, version);
         // console.log('After preorderTraversal, preorderComponents length:', preorderComponents.length);
         console.log(`[Debug] Preorder Graph 生成成功，Preorder Components 數量: ${preorderComponents.length}`);
         // 將 Grype 的漏洞資訊整合到 sortedComponents 中
@@ -291,29 +292,38 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
         // const leaves = preorderComponents.map(c => c.hash);
         // const leafInfo = preorderComponents.map(c => ({ name: c.name, version: c.version }));
 
-        console.log(`[Debug] 開始為每個 Component 生成獨立的 Merkle Tree...`);
-        for (const c of preorderComponents) {
+        console.log(`[Debug] 開始為每個 Component 生成獨立的 Merkle Tree (遞歸方式)...`);
+        // 使用反向遍歷確保子節點先於父節點被處理
+        const reversedComponents = [...preorderComponents].reverse();
+
+        for (const c of reversedComponents) {
             const componentId = c.bomRef;
             const childrenRefs = dependencyMap.get(componentId) || [];
             const childrenComponents = childrenRefs
                 .map(ref => componentMap.get(ref))
-                .filter(child => child !== undefined); // 過濾掉找不到的節點
-            const childrenHashes = childrenComponents.map(child => child.hash);
+                .filter((child): child is SbomComponent => child !== undefined); 
+            
+            // 這裡的核心改動：使用子節點的 merkleRoot 而非原始 hash
+            const childrenRoots = childrenComponents.map(child => {
+                if (!child.merkleData) {
+                    console.warn(`[Warn] 子節點 ${child.name} 尚未生成 Merkle Root，將回退使用其原始 Hash`);
+                    return child.hash;
+                }
+                return child.merkleData.merkleRoot;
+            });
 
             const fingerprint = crypto.createHash('sha256')
-                .update([c.hash, ...[...childrenHashes].sort()].join('|'))
+                .update([c.hash, ...[...childrenRoots].sort()].join('|'))
                 .digest('hex');
 
             if (globalMerkleCache.has(fingerprint)) {
-                const cachedRoot = globalMerkleCache.get(fingerprint)!;
-                // 實作 TODO: 即使是快取，也要填入介面規定的 merkleData
                 c.merkleData = globalMerkleCache.get(fingerprint);
-                // console.log(`[Debug] Component: ${c.name} | 快取命中。`);
                 continue;
             }
+
             const localLeaves = [
                 c.hash,
-                ...childrenComponents.map(child => child.hash)
+                ...childrenRoots
             ];
             const localLeafInfo = [
                 { name: c.name, version: c.version },
@@ -327,12 +337,6 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
                 const result = processor.buildMerkleTree(localLeaves, localLeafInfo);
                 c.merkleData = result;
                 globalMerkleCache.set(fingerprint, result);
-
-                // console.log(`[Debug] Component: ${c.name} | Leaves: ${localLeaves.length} | Root: ${c.merkleData.merkleRoot}`);
-
-                // 如果你想存下每個組件的 DOT 圖，可以用 c.id 作為 key
-                // c.merkleDot = result.dot; 
-
             } catch (error) {
                 console.error(`[Error] 建立 ${c.name} 的 Merkle Tree 失敗:`, error);
             }

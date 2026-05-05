@@ -97,7 +97,7 @@ export class SbomProcessor {
 
     //     return { leaves, leafInfo };
     // }   
-    public preorderTraversal(rawSbom: any): {
+    public preorderTraversal(rawSbom: any, projectNameFromApi?: string, projectVersionFromApi?: string): {
         preorderComponents: SbomComponent[],
         dependencyMap: Map<string, string[]>,
         componentMap: Map<string, SbomComponent>
@@ -177,32 +177,20 @@ export class SbomProcessor {
 
         // 3. 建立虛擬根節點 (Virtual Root) 並重新串接依賴關係
         // 現在將所有頂層元件 (Top-level packages) 直接接在 Virtual Root 下
-        const virtualRootRef = metadataRootRef;
+        const virtualRootRef = metadataRootRef || "virtual-root";
 
         // 嘗試從 metadata 取得專案名稱，如果 metadata 是 file 類型則使用預設名稱
-        let projectName = "Project-Root";
-        let projectVersion = "1.0.0";
-        if (metadataRoot && metadataRoot.type !== 'file') {
+        let projectName = projectNameFromApi || "Project-Root";
+        let projectVersion = projectVersionFromApi || "1.0.0";
+        if (!projectNameFromApi && metadataRoot && metadataRoot.type !== 'file') {
             projectName = metadataRoot.name;
             projectVersion = metadataRoot.version || "1.0.0";
         }
 
-        const virtualRoot: SbomComponent = {
-            bomRef: virtualRootRef,
-            name: projectName,
-            version: projectVersion,
-            hash: crypto.createHash('sha256').update("virtual-root").digest('hex'),
-            type: "project",
-            purl: "",
-            license: "Unknown",
-            severity: "Unknown"
-        };
-        componentLookup.set(virtualRootRef, virtualRoot);
-
         // 找出原本 SBOM 中沒被任何人依賴的「頂層套件」(孤立森林的根)
         const topLevelPackageRefs: string[] = [];
         for (const ref of componentLookup.keys()) {
-            // 排除虛擬根、且沒被任何人依賴
+            // 排除虛擬根 (此時尚未加入) 且沒被任何人依賴
             if (ref !== virtualRootRef && !allChildRefs.has(ref)) {
                 topLevelPackageRefs.push(ref);
             }
@@ -211,11 +199,31 @@ export class SbomProcessor {
         // 將這些頂層套件接在 Virtual Root 之下
         dependencyMap.set(virtualRootRef, topLevelPackageRefs);
 
+        // 計算虛擬根節點的雜湊，應包含專案資訊與頂層依賴的雜湊，確保唯一性與完整性
+        const topLevelHashes = topLevelPackageRefs
+            .map(ref => componentLookup.get(ref)?.hash || "")
+            .sort()
+            .join('|');
+        const rootContent = `project:${projectName}:${projectVersion}:${topLevelHashes}`;
+        const rootHash = crypto.createHash('sha256').update(rootContent).digest('hex');
+
+        const virtualRoot: SbomComponent = {
+            bomRef: virtualRootRef,
+            name: projectName,
+            version: projectVersion,
+            hash: rootHash,
+            type: "project",
+            purl: "",
+            license: "Unknown",
+            severity: "Unknown"
+        };
+        componentLookup.set(virtualRootRef, virtualRoot);
+
         const finalRootRef = virtualRootRef;
 
         // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
         // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
-        const MAX_CHILDREN = 15;
+        const MAX_CHILDREN = 30;
         const balanceTree = (ref: string) => {
             let children = dependencyMap.get(ref) || [];
             let iteration = 0;
