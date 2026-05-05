@@ -14,12 +14,59 @@ use async_recursion::async_recursion;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Mutex;
 use std::collections::HashSet;
+use metrics_exporter_prometheus::PrometheusBuilder;
+use metrics::{histogram, counter, gauge};
+use std::fs::OpenOptions;
+use std::path::Path;
+
+fn log_to_csv(
+    cycle: u64,
+    depth: usize,
+    pure_proving_duration: f64,
+    children_count: usize,
+    receipt_size_kb: f64,
+    seal_size_kb: f64,
+    compression_duration: f64,
+) {
+    let csv_path_str = format!("../../output/CSV/sequential/experiment_log.csv");
+    let path = Path::new(&csv_path_str);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).unwrap_or_default();
+    }
+    
+    let file_exists = path.exists();
+    let file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path);
+
+    if let Ok(file) = file {
+        let mut wtr = csv::WriterBuilder::new()
+            .has_headers(!file_exists)
+            .from_writer(file);
+        
+        if !file_exists {
+            wtr.write_record(&["cycle", "depth", "pure_proving_duration", "children_count", "receipt_size_kb", "seal_size_kb", "compression_duration"]).unwrap_or_default();
+        }
+        
+        wtr.write_record(&[
+            cycle.to_string(),
+            depth.to_string(),
+            pure_proving_duration.to_string(),
+            children_count.to_string(),
+            receipt_size_kb.to_string(),
+            seal_size_kb.to_string(),
+            compression_duration.to_string(),
+        ]).unwrap_or_default();
+        wtr.flush().unwrap_or_default();
+    }
+}
 
 #[derive(Deserialize)]
 struct ProveRequest {
     #[serde(rename = "artifactId")]
     artifact_id: String,
-    #[serde(rename = "treeData")]
+    #[serde(rename = "treeData")]   
     tree_data: Value, 
 }
 
@@ -76,7 +123,8 @@ async fn run_risc0_prover(
     comp_input: ComponentInput,
     merkle_input: MerkleInput,
     assumptions: Vec<Receipt>,
-) -> Result<Receipt, (StatusCode, String)> {
+    depth: usize,
+) -> Result<(Receipt, u64), (StatusCode, String)> {
 
     let _permit = if comp_input.comp_type == "virtual-batch" {
         state.compress_semaphore.acquire().await.unwrap()
@@ -84,7 +132,20 @@ async fn run_risc0_prover(
         state.prove_semaphore.acquire().await.unwrap()
     };
 
-    let receipt = tokio::task::spawn_blocking(move || {
+    let bom_ref = comp_input.bom_ref.clone();
+    let children_count = comp_input.dependency_hashes.len();
+    let labels = [
+        ("component_name", comp_input.name.clone()), // 如果只是為了辨識，留 name 即可
+        ("node_type", comp_input.comp_type.clone()), // "leaf" 或 "virtual-batch"
+        ("severity", format!("{:?}", comp_input.severity)), 
+        ("depth", depth.to_string()),                        
+        ("children_count", children_count.to_string()),            
+    ];
+    let labels_for_task = labels.clone();
+
+    let start_total_task = Instant::now();
+    
+    let (receipt, cycles, pure_prove_duration, compression_duration) = tokio::task::spawn_blocking(move || -> Result<(Receipt, u64, f64, f64), String> {
         let mut env_builder = ExecutorEnv::builder();
         for child_receipt in assumptions {
             env_builder.add_assumption(child_receipt);
@@ -95,22 +156,60 @@ async fn run_risc0_prover(
 
         let env = env_builder.build().unwrap();
         let prover = default_prover();
+
+        let prove_start = std::time::Instant::now();
+        
         let prove_info = prover.prove(env, GUEST_CODE_FOR_ZKP_ELF)
             .map_err(|e| format!("Prover prove failed: {}", e))?;
 
+        let pure_prove_duration = prove_start.elapsed().as_millis() as f64;
+        let cycles = prove_info.stats.total_cycles as u64;
+
         if comp_input.comp_type == "virtual-batch" {
             println!("[-] 聚合節點 ({})，執行證明壓縮...", comp_input.name);
-            prover.compress(&risc0_zkvm::ProverOpts::succinct(), &prove_info.receipt)
-                .map_err(|e| format!("Prover compression failed: {}", e))
+            
+            let compress_start = std::time::Instant::now();
+
+            let compressed_receipt = prover.compress(&risc0_zkvm::ProverOpts::succinct(), &prove_info.receipt)
+                .map_err(|e| format!("Prover compression failed: {}", e))?;
+            
+            let compress_duration = compress_start.elapsed().as_millis() as f64;
+            // histogram!("compression_duration_ms", &labels_for_task).record(compress_duration);
+            // gauge!("last_compression_duration_ms", &labels_for_task).set(compress_duration);
+            
+            Ok((compressed_receipt, cycles, pure_prove_duration, compress_duration))
         } else {
-            Ok(prove_info.receipt)
+            Ok((prove_info.receipt, cycles, pure_prove_duration, 0.0))
         }
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Thread error: {}", e)))?
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Prover error: {}", e)))?;
 
-    Ok(receipt)
+    let total_task_duration = start_total_task.elapsed().as_millis() as f64;
+
+    // proof size
+    let receipt_size = bincode::serialize(&receipt).unwrap();
+    let receipt_size_kb = receipt_size.len() as f64 / 1024.0;
+
+    let seal_bytes = bincode::serialize(&receipt.inner).unwrap_or_default();
+    let seal_size_kb = seal_bytes.len() as f64 / 1024.0;
+
+    histogram!("risczero_receipt_size_kb", &labels).record(receipt_size_kb);
+    histogram!("risczero_receipt_seal_size_kb", &labels).record(seal_size_kb);
+    // time metrics
+    histogram!("proving_duration_ms", &labels).record(pure_prove_duration);
+    gauge!("last_proving_duration_ms", &labels).set(pure_prove_duration);
+    histogram!("compression_duration_ms", &labels).record(compression_duration);
+    gauge!("last_compression_duration_ms", &labels).set(compression_duration);
+    // histogram!("proving_node_depth", &labels).record(depth as f64);
+    // histogram!("proving_node_children_count", &labels).record(children_count as f64);
+    counter!("risczero_cycles_total", &labels).absolute(cycles);
+    gauge!("last_proving_cycles", &labels).set(cycles as f64);
+
+    log_to_csv(cycles, depth, pure_prove_duration, children_count, receipt_size_kb, seal_size_kb, compression_duration);
+
+    Ok((receipt, cycles))
 }
 
 async fn download_and_verify_receipt(cid: &str) -> Result<Receipt, (StatusCode, String)> {
@@ -168,20 +267,23 @@ async fn prove_component_recursive(
     receipt_cache: &mut HashMap<String, Receipt>,
     pb: ProgressBar,
     visited_pb: Arc<Mutex<HashSet<String>>>,
+    depth: usize,
 ) -> Result<Receipt, (StatusCode, String)> {
     let component_map = tree_data["componentMap"].as_object()
         .ok_or((StatusCode::BAD_REQUEST, "componentMap missing".to_string()))?;
 
     let comp = component_map.get(&comp_id).ok_or((StatusCode::BAD_REQUEST, format!("Component {} not found", comp_id)))?;
-    let comp_hash_str = comp["hash"].as_str().unwrap().to_string();
+    let comp_identity_hash = comp["hash"].as_str().unwrap().to_string();
+    let merkle_data = &comp["merkleData"];
+    let comp_recursive_hash = merkle_data["merkleRoot"].as_str().unwrap().to_string();
     let comp_name = comp["name"].as_str().unwrap_or("unknown");
 
     let is_first_visit = {
         let mut visited = visited_pb.lock().unwrap();
-        visited.insert(comp_hash_str.clone())
+        visited.insert(comp_recursive_hash.clone())
     };
 
-    if let Some(r) = receipt_cache.get(&comp_hash_str) {
+    if let Some(r) = receipt_cache.get(&comp_recursive_hash) {
         if is_first_visit { pb.inc(1); }
         return Ok(r.clone());
     }
@@ -190,7 +292,7 @@ async fn prove_component_recursive(
     loop {
         let current_status = {
             let map = state.ipfs_map.read().unwrap();
-            map.get(&comp_hash_str).cloned()
+            map.get(&comp_recursive_hash).cloned()
         };
 
         if let Some(status) = current_status {
@@ -201,7 +303,7 @@ async fn prove_component_recursive(
             } else {
                 // 已完成，下載並回傳
                 let receipt = download_and_verify_receipt(&status).await?;
-                receipt_cache.insert(comp_hash_str.clone(), receipt.clone());
+                receipt_cache.insert(comp_recursive_hash.clone(), receipt.clone());
                 if is_first_visit { pb.inc(1); }
                 return Ok(receipt);
             }
@@ -209,8 +311,8 @@ async fn prove_component_recursive(
             // 沒人在做，趕快佔位
             let mut map = state.ipfs_map.write().unwrap();
             // 佔位前再檢查一次，避免在等待寫鎖期間被別人搶先
-            if map.contains_key(&comp_hash_str) { continue; } 
-            map.insert(comp_hash_str.clone(), "PROCESSING".to_string());
+            if map.contains_key(&comp_recursive_hash) { continue; } 
+            map.insert(comp_recursive_hash.clone(), "PROCESSING".to_string());
             break; // 跳出 loop 開始執行證明
         }
     }
@@ -221,24 +323,23 @@ async fn prove_component_recursive(
     if let Some(deps) = tree_data["dependencyMap"].get(&comp_id).and_then(|v| v.as_array()) {
         for dep_id_value in deps {
             let dep_id = dep_id_value.as_str().unwrap().to_string();
-            let child_receipt = prove_component_recursive(dep_id.clone(), state.clone(), tree_data, receipt_cache, pb.clone(), visited_pb.clone()).await?;
+            let child_receipt = prove_component_recursive(dep_id.clone(), state.clone(), tree_data, receipt_cache, pb.clone(), visited_pb.clone(), depth + 1).await?;
             assumptions_to_add.push(child_receipt);
-            let child_hash_str = tree_data["componentMap"][&dep_id]["hash"].as_str().unwrap();
-            children_hashes.push(decode_hex_32(child_hash_str));
+            let child_recursive_hash = tree_data["componentMap"][&dep_id]["merkleData"]["merkleRoot"].as_str().unwrap();
+            children_hashes.push(decode_hex_32(child_recursive_hash));
         }
     }
 
-    let merkle_data = &comp["merkleData"];
     let root_str = merkle_data["merkleRoot"].as_str().unwrap();
     
     let path_elements = merkle_data["components"].as_array().unwrap().iter()
-        .find(|c| c["hash"].as_str().unwrap() == &comp_hash_str)
+        .find(|c| c["hash"].as_str().unwrap() == &comp_identity_hash)
         .and_then(|c| c["merklePath"]["pathElements"].as_array())
         .map(|arr| arr.iter().map(|v| decode_hex_32(v.as_str().unwrap())).collect::<Vec<_>>())
         .unwrap_or_default();
 
     let path_indices = merkle_data["components"].as_array().unwrap().iter()
-        .find(|c| c["hash"].as_str().unwrap() == &comp_hash_str)
+        .find(|c| c["hash"].as_str().unwrap() == &comp_identity_hash)
         .and_then(|c| c["merklePath"]["pathIndices"].as_array())
         .map(|arr| arr.iter().map(|v| v.as_u64().unwrap() as u32).collect::<Vec<_>>())
         .unwrap_or_default();
@@ -250,9 +351,10 @@ async fn prove_component_recursive(
     };
 
     let comp_input = ComponentInput {
+        bom_ref: comp_id.clone(),
         name: comp_name.to_string(),
         version: comp["version"].as_str().unwrap_or("").to_string(),
-        hash: decode_hex_32(&comp_hash_str),
+        hash: decode_hex_32(&comp_identity_hash),
         license: comp["license"].as_str().unwrap_or("").to_string(),
         severity: map_severity(comp["severity"].as_str().unwrap_or("Unknown")),
         comp_type: comp["type"].as_str().unwrap_or("unknown").to_string(),
@@ -260,18 +362,18 @@ async fn prove_component_recursive(
     };
 
     // println!("[-] 正在證明套件: {}", comp_name);
-    pb.set_message(format!("證明中: {} ({})", comp_name, &comp_hash_str[0..6]));
-    let receipt_result = run_risc0_prover(state.clone(), comp_input, local_merkle_input, assumptions_to_add).await;
+    pb.set_message(format!("證明中: {} ({})", comp_name, &comp_recursive_hash[0..6]));
+    let receipt_result = run_risc0_prover(state.clone(), comp_input, local_merkle_input, assumptions_to_add, depth).await;
 
     match receipt_result {
-        Ok(receipt) => {
+        Ok((receipt, _cycles)) => {
             // 證明成功，上傳並更新狀態
             let cid = upload_receipt_to_ipfs(&receipt).await?;
             {
                 let mut map = state.ipfs_map.write().unwrap();
-                map.insert(comp_hash_str.clone(), cid); // 用真正的 CID 替換 "PROCESSING"
+                map.insert(comp_recursive_hash.clone(), cid); // 用真正的 CID 替換 "PROCESSING"
             }
-            receipt_cache.insert(comp_hash_str, receipt.clone());
+            receipt_cache.insert(comp_recursive_hash, receipt.clone());
             if is_first_visit { pb.inc(1); }
             Ok(receipt)
         }
@@ -279,7 +381,7 @@ async fn prove_component_recursive(
             // 證明失敗，必須清除 "PROCESSING" 狀態，讓下次可以重試
             {
                 let mut map = state.ipfs_map.write().unwrap();
-                map.remove(&comp_hash_str);
+                map.remove(&comp_recursive_hash);
             }
             Err(e)
         }
@@ -317,11 +419,11 @@ async fn handle_prove(State(state): State<Arc<CompState>>, Json(payload): Json<P
     let visited_pb = Arc::new(Mutex::new(HashSet::new()));
 
     let mut receipt_cache = HashMap::new();
-    match prove_component_recursive(root_id.clone(), state.clone(), &tree_data, &mut receipt_cache, pb.clone(), visited_pb.clone()).await {
+    match prove_component_recursive(root_id.clone(), state.clone(), &tree_data, &mut receipt_cache, pb.clone(), visited_pb.clone(), 0).await {
         Ok(final_receipt) => {
             pb.finish_with_message("證明生成完成！");
             let prove_duration_ms = start_calc.elapsed().as_millis();
-            let root_hash = tree_data["componentMap"].get(&root_id).and_then(|n| n["hash"].as_str()).unwrap();
+            let root_hash = tree_data["componentMap"].get(&root_id).and_then(|n| n["merkleData"]["merkleRoot"].as_str()).unwrap();
             let root_cid = state.ipfs_map.read().unwrap().get(root_hash).cloned();
 
             Json(ProveResponse {
@@ -341,6 +443,17 @@ async fn handle_prove(State(state): State<Arc<CompState>>, Json(payload): Json<P
 
 #[tokio::main]
 async fn main() {
+
+    let builder = PrometheusBuilder::new();
+    builder.with_http_listener(([0, 0, 0, 0], 3002))
+           .install()
+           .expect("failed to install Prometheus recorder");
+
+    metrics::counter!("server_boot_test_total").increment(1);
+    metrics::gauge!("server_status_ready").set(1.0);
+
+    println!("📊 Prometheus Exporter 已啟動於 http://localhost:3002/metrics");
+
     let prover_semaphore = Arc::new(Semaphore::new(1));
     let shared_state = Arc::new(CompState { 
         ipfs_map: RwLock::new(HashMap::new()),

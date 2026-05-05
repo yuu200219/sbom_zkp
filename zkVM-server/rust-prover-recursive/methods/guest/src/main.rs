@@ -62,9 +62,10 @@ pub fn main() {
     );
 
     // ==========================================
-    // 4. 檢查完畢，將自己的 Hash 寫入 Journal
+    // 4. 檢查完畢，將自己的 Merkle Root 寫入 Journal
+    // 這是為了讓父節點能夠驗證遞歸證明，因為父節點預期驗證的是子節點的 Merkle Root
     // ==========================================
-    env::commit_slice(&comp_input.hash);
+    env::commit_slice(&merkle_input.root);
 
     let end = env::cycle_count();
     eprintln!("Component proven in cycles: {}", end - start);

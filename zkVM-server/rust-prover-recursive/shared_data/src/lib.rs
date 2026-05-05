@@ -12,6 +12,7 @@ pub enum Severity {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ComponentInput {
+    pub bom_ref: String,
     pub name: String,
     pub hash: [u8; 32],
     pub version: String,
