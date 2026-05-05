@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import FormData from 'form-data';
 import { lock } from 'ethers';
 
-async function testGenerateAndProve(filePath: string, artifactId: string) {
+async function testGenerateAndProve(filePath: string, artifactId: string, version: string = "1.0.0") {
     // 檢查檔案是否存在
     if (!fs.existsSync(filePath)) {
         console.error(`❌ 找不到檔案: ${filePath}`);
@@ -20,6 +20,7 @@ async function testGenerateAndProve(filePath: string, artifactId: string) {
     // 'file' 必須對應到 node-api 中 upload.single('file') 的名稱
     form.append('file', fs.createReadStream(filePath));
     form.append('artifactId', artifactId);
+    form.append('version', version);
 
     try {
         console.time('Total-Process-Time');
@@ -61,12 +62,22 @@ const pythonManifest = '../../sbom-risc0/sbom/flask_server/poetry.lock';
 const nodeLockfile = 'package-lock.json';
 const geminiCliLockfile = '../../sbom-risc0/sbom/gemini-cli/package-lock.json';
 const goMod = '../../sbom-risc0/sbom/client-go/go.mod';
-const flaskServerLockfile = '../../sbom-risc0/sbom/flask/uv.lock';
+const flaskServerLockfile = '../../sbom-risc0/sbom/flask/old/uv.lock';
+const flaskServerLockfileNew = '../../sbom-risc0/sbom/flask/update_filelock/uv.lock';
+const flaskServerLockfileNewest = '../../sbom-risc0/sbom/flask/uv.lock';
 const awsCDKLockfile = '../../sbom-risc0/sbom/aws-cdk/yarn.lock';
 const reactLockfile = '../../sbom-risc0/sbom/react/yarn.lock';
-testGenerateAndProve(reactLockfile, "react-v19.2.5");
+const axiosLockFile = '../../sbom-risc0/sbom/axios/package-lock.json';
+const awscliLockFile = '../../sbom-risc0/sbom/aws-cli/requirements-dev-lock.txt';
+const expressLockFile = '../../sbom-risc0/sbom/express/package-lock.json';
+const semanticKernelLockFile = '../../sbom-risc0/sbom/semantic-kernel/python/uv.lock';
+// testGenerateAndProve(semanticKernelLockFile, "semantic-kernel", "1.14.2");
+// testGenerateAndProve(expressLockFile, "express", "4.22.0");
+// testGenerateAndProve(reactLockfile, "react", "19.2.5");
+// testGenerateAndProve(axiosLockFile, "axios", "1.15.2");
 // testGenerateAndProve(awsCDKLockfile, "aws-cdk-v2.250.0");
-// testGenerateAndProve(flaskServerLockfile, "flask-3.1.3");
+// testGenerateAndProve(flaskServerLockfile, "flask", "3.1.3");
+// testGenerateAndProve(flaskServerLockfileNew, "flask", "3.1.3");
 // testGenerateAndProve(goMod, "client-go-v0.35.4");
 // testGenerateAndProve(geminiCliLockfile, "Gemini CLI v0.38.2");
 // testGenerateAndProve(pythonManifest, "python-app-v1");
@@ -75,3 +86,15 @@ testGenerateAndProve(reactLockfile, "react-v19.2.5");
 // 測試案例 B: Node.js Lockfile (如果有的話)
 // const nodeLockfile = './package-lock.json';
 // testGenerateAndProve(nodeLockfile, "node-app-v1");
+
+(async () => {
+    console.log("=== 開始實驗：原始檔案生成 zk proof ===");
+    await testGenerateAndProve(flaskServerLockfile, "flask", "3.1.3");
+
+    console.log("\n=== 實驗結束 ===");
+
+    // console.log("=== 開始實驗：更新後檔案生成 zk proof ===");
+    // await testGenerateAndProve(flaskServerLockfileNew, "flask", "3.1.3");
+
+    // console.log("\n=== 實驗結束 ===");
+})();

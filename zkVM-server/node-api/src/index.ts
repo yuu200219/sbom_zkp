@@ -29,7 +29,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
 
     // 取得 proof 請求資料
     const file = req.file;
-    const { artifactId } = req.body;
+    const { artifactId, version } = req.body;
 
     if (!file) return res.status(400).json({ error: '請上傳 lockfile (如 package-lock.json)' });
 
@@ -39,6 +39,10 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         // --- 1. 轉發檔案給 sbom-service ---
         const form = new FormData();
         form.append('file', fs.createReadStream(file.path), file.originalname);
+        form.append('projectName', artifactId);
+        if (version) {
+            form.append('version', version);
+        }
 
         const sbomRes = await axios.post<any>(`${SBOM_SERVICE_URL}/generate`, form, {
             headers: { ...form.getHeaders() },
