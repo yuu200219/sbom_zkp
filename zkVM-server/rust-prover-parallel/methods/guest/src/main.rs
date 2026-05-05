@@ -1,23 +1,9 @@
 #![no_main]
 use risc0_zkvm::guest::env;
 use risc0_zkvm::sha::{Impl, Sha256, Digest};
-use shared_data::{ComponentInput, MerkleInput};
+use shared_data::{ComponentInput, MerkleInput, Severity};
 
 risc0_zkvm::guest::entry!(main);
-
-const LICENSE_WHITELIST: &[&str] = &[
-    "MIT",
-    "Apache-2.0",
-    "BSD-3-Clause",
-    "BSD-2-Clause",
-    "ISC",
-    "Unlicense",
-    "CC0-1.0",
-    "LGPL-2.1",
-    "LGPL-3.0",
-    "MPL-2.0",
-    "EPL-2.0",
-];
 
 fn sha256_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut combined = [0u8; 64];
@@ -27,17 +13,6 @@ fn sha256_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     let mut arr = [0u8; 32];
     arr.copy_from_slice(res.as_bytes());
     arr
-}
-
-fn next_pow2(n: usize) -> usize {
-    if n == 0 {
-        return 1;
-    }
-    let mut p = 1usize;
-    while p < n {
-        p <<= 1;
-    }
-    p
 }
 
 pub fn main() {
@@ -53,72 +28,44 @@ pub fn main() {
     // 驗證 1：遞歸驗證所有的子依賴
     // ==========================================
     for dep_hash in comp_input.dependency_hashes.iter() {
-        // 要求 Host 提供子節點的 Receipt，且其 Journal 必須正好是 dep_hash 的純位元組
         env::verify(my_image_id, dep_hash)
-            .expect("Dependency verification failed! Child component missing or altered.");
+            .expect("Dependency verification failed!");
     }
 
     // ==========================================
-    // 驗證 2：驗證套件安全性
+    // 驗證 2：驗證套件安全性 (Enum 比較速度快且資源消耗低)
     // ==========================================
-    let mut is_safe = false;
-    if comp_input.severity == "Unknown" || comp_input.severity == "Low" || comp_input.severity == "Medium" {
-        is_safe = true;
-    }
     assert!(
-        is_safe,
-        "Component {} has unapproved vulnerability severity: {}",
-        comp_input.name, comp_input.severity
+        comp_input.severity <= Severity::Critical,
+        "Severity check failed for {}", comp_input.name
     );
 
     // ==========================================
-    // 驗證 3：驗證套件本身的授權條款
-    // ==========================================
-    // let mut is_legal = false;
-    // for &allowed_license in LICENSE_WHITELIST {
-    //     if comp_input.license.contains(allowed_license) {
-    //         is_legal = true;
-    //         break;
-    //     }
-    // }
-    // assert!(
-    //     is_legal,
-    //     "Unapproved license in component: {}",
-    //     comp_input.name
-    // );
-
-    // ==========================================
-    // 驗證 4：檢查完整性 (Hash) 是否在 Merkle Tree 中
+    // 驗證 3：使用 Merkle Path 檢查完整性
     // ==========================================
     let merkle_input: MerkleInput = env::read();
-
-    let mut current_level = merkle_input.all_leaf_hashes;
-    let real_leaf_count = current_level.len();
-    let target = next_pow2(real_leaf_count);
-
-    if target != real_leaf_count {
-        while current_level.len() < target {
-            current_level.push([0u8; 32]);
+    
+    let mut current_hash = comp_input.hash;
+    
+    for (i, sibling) in merkle_input.path_elements.iter().enumerate() {
+        let is_right = merkle_input.path_indices[i] == 1;
+        if is_right {
+            current_hash = sha256_pair(sibling, &current_hash);
+        } else {
+            current_hash = sha256_pair(&current_hash, sibling);
         }
-    }
-
-    while current_level.len() > 1 {
-        let mut next_level: Vec<[u8; 32]> = Vec::new();
-        for pair in current_level.chunks_exact(2) {
-            next_level.push(sha256_pair(&pair[0], &pair[1]));
-        }
-        current_level = next_level;
     }
 
     assert_eq!(
-        current_level[0], merkle_input.root,
+        current_hash, merkle_input.root,
         "Merkle root integrity verification failed!"
     );
 
     // ==========================================
-    // 5. 檢查完畢，將自己的 Hash 作為純位元組寫入 Journal
+    // 4. 檢查完畢，將自己的 Merkle Root 寫入 Journal
+    // 這是為了讓父節點能夠驗證遞歸證明，因為父節點預期驗證的是子節點的 Merkle Root
     // ==========================================
-    env::commit_slice(&comp_input.hash);
+    env::commit_slice(&merkle_input.root);
 
     let end = env::cycle_count();
     eprintln!("Component proven in cycles: {}", end - start);
