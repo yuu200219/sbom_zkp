@@ -7,7 +7,7 @@ use std::time::Instant;
 use csv::ReaderBuilder;
 use std::path::Path;
 use std::fs::OpenOptions;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 struct VerifyMetrics {
@@ -18,6 +18,12 @@ struct VerifyMetrics {
     parent_count: usize,
     receipt_size_kb: f64,
     seal_size_kb: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct StoredProof {
+    receipt: Receipt,
+    image_id: [u32; 8],
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,33 +133,46 @@ fn verify_single(
 ) -> Result<VerifyMetrics, String> {
     let verify_start = Instant::now();
     
-    // Parse JSON
-    let json: Value = serde_json::from_slice(&raw_data)
-        .map_err(|e| format!("JSON 解析失敗: {}", e))?;
-
-    let proof_hex = json["proof"].as_str()
-        .ok_or("JSON 中找不到 proof 欄位")?;
-
-    // Decode proof bytes
-    let proof_bytes = hex::decode(proof_hex)
-        .map_err(|e| format!("Proof Hex 解碼失敗: {}", e))?;
-
-    let receipt: Receipt = match bincode::deserialize::<Receipt>(&proof_bytes) {
-        Ok(r) => {
-            println!("[-] {} - 偵測到完整的 Receipt 格式，直接使用。", comp_name);
-            r
+    // 首先尝试解析为 bincode 格式（Rust Prover 直接上传的格式）
+    let receipt = match bincode::deserialize::<StoredProof>(raw_data) {
+        Ok(stored_proof) => {
+            println!("[-] {} - 偵測到 bincode 格式，直接使用。", comp_name);
+            stored_proof.receipt
         }
         Err(_) => {
-            println!("[-] {} - 偵測到 InnerReceipt 格式，正在從 JSON 提取 journal 並重組...", comp_name);
-            let inner: risc0_zkvm::InnerReceipt = bincode::deserialize(&proof_bytes)
-                .map_err(|e| format!("無法解析 Proof: {}", e))?;
+            // 如果 bincode 失败，尝试 JSON 格式（Node API 保存的格式）
+            match serde_json::from_slice::<Value>(raw_data) {
+                Ok(json) => {
+                    println!("[-] {} - 偵測到 JSON 格式，正在解析...", comp_name);
+                    let proof_hex = json["proof"].as_str()
+                        .ok_or("JSON 中找不到 proof 欄位")?;
 
-            let journal_hex = json["journal"].as_str()
-                .ok_or("缺少 journal 欄位")?;
-            let journal_bytes = hex::decode(journal_hex)
-                .map_err(|e| format!("Journal Hex 解碼失敗: {}", e))?;
+                    let proof_bytes = hex::decode(proof_hex)
+                        .map_err(|e| format!("Proof Hex 解碼失敗: {}", e))?;
 
-            Receipt::new(inner, journal_bytes)
+                    match bincode::deserialize::<Receipt>(&proof_bytes) {
+                        Ok(r) => {
+                            println!("[-] {} - JSON 中的 Receipt 格式有效", comp_name);
+                            r
+                        }
+                        Err(_) => {
+                            println!("[-] {} - JSON 中偵測到 InnerReceipt 格式，正在從 journal 重組...", comp_name);
+                            let inner: risc0_zkvm::InnerReceipt = bincode::deserialize(&proof_bytes)
+                                .map_err(|e| format!("無法解析 Proof: {}", e))?;
+
+                            let journal_hex = json["journal"].as_str()
+                                .ok_or("缺少 journal 欄位")?;
+                            let journal_bytes = hex::decode(journal_hex)
+                                .map_err(|e| format!("Journal Hex 解碼失敗: {}", e))?;
+
+                            Receipt::new(inner, journal_bytes)
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(format!("無法解析資料：既不是 bincode 也不是 JSON - {}", e));
+                }
+            }
         }
     };
 
