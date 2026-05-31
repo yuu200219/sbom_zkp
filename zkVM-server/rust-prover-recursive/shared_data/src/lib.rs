@@ -20,6 +20,8 @@ pub struct ComponentInput {
     pub severity: Severity,
     pub comp_type: String,
     pub dependency_hashes: Vec<[u8; 32]>,
+    pub depth: usize,
+    pub parent_count: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
