@@ -24,6 +24,7 @@ export interface SbomComponent {
     type: string;
     purl: string;
     merkleData?: MerkleData; // 可選的 Merkle Tree 資料
+    depth: number; // 可選的深度資訊，方便前端展示樹狀結構
 }
 
 export interface SbomServiceResponse {

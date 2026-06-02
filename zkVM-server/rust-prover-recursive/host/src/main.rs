@@ -17,7 +17,21 @@ use std::collections::HashSet;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use metrics::{histogram, counter, gauge};
 use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
 use std::path::Path;
+
+// Wrapper to make Arc<Mutex<Vec<u8>>> implement Write
+struct SharedStderr(Arc<Mutex<Vec<u8>>>);
+
+impl Write for SharedStderr {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.lock().unwrap().flush()
+    }
+}
 
 #[derive(Debug, Clone)]
 struct ProveMetrics {
@@ -31,6 +45,36 @@ struct ProveMetrics {
     receipt_size_kb: f64,
     seal_size_kb: f64,
     compression_duration: f64,
+    guest_io_read: u64,
+    guest_dependency_check: u64,
+    guest_severity_check: u64,
+    guest_merkle_io_read: u64,
+    guest_merkle_check: u64,
+}
+
+fn parse_guest_metrics(stderr_output: &str) -> (u64, u64, u64, u64, u64) {
+    let mut io_read = 0u64;
+    let mut dep_check = 0u64;
+    let mut severity_check = 0u64;
+    let mut merkle_io_read = 0u64;
+    let mut merkle_check = 0u64;
+
+    for line in stderr_output.lines() {
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() == 3 {
+            if let Ok(cycles) = parts[2].trim().parse::<u64>() {
+                match parts[1].trim() {
+                    "IO_Read" => io_read = cycles,
+                    "Dependency_Check" => dep_check = cycles,
+                    "Severity_Check" => severity_check = cycles,
+                    "Merkle_IO_Read" => merkle_io_read = cycles,
+                    "Merkle_Check" => merkle_check = cycles,
+                    _ => {}
+                }
+            }
+        }
+    }
+    (io_read, dep_check, severity_check, merkle_io_read, merkle_check)
 }
 
 fn log_to_csv(
@@ -56,7 +100,13 @@ fn log_to_csv(
             .from_writer(file);
         
         if !file_exists {
-            wtr.write_record(&["total_cycles", "user_cycles", "segments", "depth", "pure_prove_duration", "children_count", "parent_count", "receipt_size_kb", "seal_size_kb", "compression_duration", "comp_name", "cid"]).unwrap_or_default();
+            wtr.write_record(&[
+                "total_cycles", "user_cycles", "segments", "depth", "pure_prove_duration", 
+                "children_count", "parent_count", "receipt_size_kb", "seal_size_kb", 
+                "compression_duration", "guest_io_read", "guest_dependency_check", 
+                "guest_severity_check", "guest_merkle_io_read", "guest_merkle_check",
+                "comp_name", "cid"
+            ]).unwrap_or_default();
         }
         
         wtr.write_record(&[
@@ -70,6 +120,11 @@ fn log_to_csv(
             metrics.receipt_size_kb.to_string(),
             metrics.seal_size_kb.to_string(),
             metrics.compression_duration.to_string(),
+            metrics.guest_io_read.to_string(),
+            metrics.guest_dependency_check.to_string(),
+            metrics.guest_severity_check.to_string(),
+            metrics.guest_merkle_io_read.to_string(),
+            metrics.guest_merkle_check.to_string(),
             comp_name.to_string(),
             cid.to_string(),
         ]).unwrap_or_default();
@@ -162,14 +217,17 @@ async fn run_risc0_prover(
 
     let start_total_task = Instant::now();
     
-    let (receipt, total_cycles, user_cycles, segments, pure_prove_duration, compression_duration) = tokio::task::spawn_blocking(move || -> Result<(Receipt, u64, u64, u64, f64, f64), String> {
+    let (receipt, total_cycles, user_cycles, segments, pure_prove_duration, compression_duration, stderr_output) = tokio::task::spawn_blocking(move || -> Result<(Receipt, u64, u64, u64, f64, f64, Vec<u8>), String> {
+        let stderr_buffer = Arc::new(Mutex::new(Vec::new()));
+        
         let mut env_builder = ExecutorEnv::builder();
         for child_receipt in assumptions {
             env_builder.add_assumption(child_receipt);
         }
         env_builder.write(&comp_input).unwrap();
         env_builder.write(&GUEST_CODE_FOR_ZKP_ID).unwrap();
-        env_builder.write(&merkle_input).unwrap(); 
+        env_builder.write(&merkle_input).unwrap();
+        env_builder.stderr(SharedStderr(stderr_buffer.clone()));
 
         let env = env_builder.build().unwrap();
         let prover = default_prover();
@@ -193,12 +251,11 @@ async fn run_risc0_prover(
                 .map_err(|e| format!("Prover compression failed: {}", e))?;
             
             let compress_duration = compress_start.elapsed().as_millis() as f64;
-            // histogram!("compression_duration_ms", &labels_for_task).record(compress_duration);
-            // gauge!("last_compression_duration_ms", &labels_for_task).set(compress_duration);
-            
-            Ok((compressed_receipt, total_cycles, user_cycles, segments, pure_prove_duration, compress_duration))
+            let captured_stderr = stderr_buffer.lock().unwrap().clone();
+            Ok((compressed_receipt, total_cycles, user_cycles, segments, pure_prove_duration, compress_duration, captured_stderr))
         } else {
-            Ok((prove_info.receipt, total_cycles, user_cycles, segments, pure_prove_duration, 0.0))
+            let captured_stderr = stderr_buffer.lock().unwrap().clone();
+            Ok((prove_info.receipt, total_cycles, user_cycles, segments, pure_prove_duration, 0.0, captured_stderr))
         }
     })
     .await
@@ -226,6 +283,11 @@ async fn run_risc0_prover(
     // counter!("risczero_cycles_total", &labels).absolute(cycles);
     // gauge!("last_proving_cycles", &labels).set(cycles as f64);
 
+    // Extract guest metrics from stderr output
+    let stderr_str = String::from_utf8_lossy(&stderr_output);
+    let (guest_io_read, guest_dependency_check, guest_severity_check, guest_merkle_io_read, guest_merkle_check) = 
+        parse_guest_metrics(&stderr_str);
+
     let metrics = ProveMetrics {
         total_cycles,
         user_cycles,
@@ -237,6 +299,11 @@ async fn run_risc0_prover(
         receipt_size_kb,
         seal_size_kb,
         compression_duration,
+        guest_io_read,
+        guest_dependency_check,
+        guest_severity_check,
+        guest_merkle_io_read,
+        guest_merkle_check,
     };
 
     Ok((receipt, metrics))
@@ -353,7 +420,10 @@ async fn prove_component_recursive(
         for dep_id_value in deps {
             let dep_id = dep_id_value.as_str().unwrap().to_string();
             let child_receipt = prove_component_recursive(dep_id.clone(), state.clone(), tree_data, receipt_cache, pb.clone(), visited_pb.clone()).await?;
+            
+            // Virtual-batch 節點的收據也需要加入 assumption
             assumptions_to_add.push(child_receipt);
+            
             let child_recursive_hash = tree_data["componentMap"][&dep_id]["merkleData"]["merkleRoot"].as_str().unwrap();
             children_hashes.push(decode_hex_32(child_recursive_hash));
         }

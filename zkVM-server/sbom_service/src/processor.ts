@@ -34,6 +34,8 @@ export interface SbomComponent {
     purl: string;
     license: string;
     severity: string;
+    depth: number; // 最深路徑深度
+    parent_count: number; // 新增：被依賴的次數 (Fan-in)
     merkleData?: MerkleData;
 }
 
@@ -149,7 +151,9 @@ export class SbomProcessor {
                 type: c.type || 'unknown',
                 purl: c.purl || '',
                 license: c.licenses?.[0]?.license?.id || 'Unknown',
-                severity: 'Unknown'
+                severity: 'Unknown',
+                depth: 0, // 初始化，將在後續計算
+                parent_count: 0
             });
         });
 
@@ -215,15 +219,41 @@ export class SbomProcessor {
             type: "project",
             purl: "",
             license: "Unknown",
-            severity: "Unknown"
+            severity: "Unknown",
+            depth: 0, // 初始化，將在後續計算
+            parent_count: 0
         };
         componentLookup.set(virtualRootRef, virtualRoot);
 
         const finalRootRef = virtualRootRef;
 
+        // --- 計算每個組件的最深路徑深度 ---
+        const depthMemo = new Map<string, number>();
+        const calculateComponentDepth = (ref: string, currentDepth: number): number => {
+            const memoizedDepth = depthMemo.get(ref);
+            if (memoizedDepth !== undefined && memoizedDepth >= currentDepth) {
+                return memoizedDepth;
+            }
+            depthMemo.set(ref, currentDepth);
+            const children = dependencyMap.get(ref) || [];
+            let maxSubDepth = currentDepth;
+            for (const child of children) {
+                maxSubDepth = Math.max(maxSubDepth, calculateComponentDepth(child, currentDepth + 1));
+            }
+            return maxSubDepth;
+        };
+
+        // 從根節點開始計算所有組件的深度
+        calculateComponentDepth(finalRootRef, 0);
+
+        // 更新所有組件的深度
+        for (const [ref, component] of componentLookup.entries()) {
+            component.depth = depthMemo.get(ref) || 0;
+        }
+
         // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
         // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
-        const MAX_CHILDREN = 30;
+        const MAX_CHILDREN = 50;
         const balanceTree = (ref: string) => {
             let children = dependencyMap.get(ref) || [];
             let iteration = 0;
@@ -240,6 +270,8 @@ export class SbomProcessor {
                     const batchContent = chunk.map(cRef => componentLookup.get(cRef)?.hash || "").sort().join('|');
                     const batchHash = crypto.createHash('sha256').update(batchContent).digest('hex');
 
+                    // 批次節點不計算深度，因為它們不是真實組件
+                    // 只是為了限制 Fan-out 的虛擬節點
                     const batchNode: SbomComponent = {
                         bomRef: batchId,
                         name: `Batch-L${iteration}-${Math.floor(i / MAX_CHILDREN) + 1}`,
@@ -248,7 +280,9 @@ export class SbomProcessor {
                         type: "virtual-batch",
                         purl: "",
                         license: "Unknown",
-                        severity: "Unknown"
+                        severity: "Unknown",
+                        depth: 0,  // 虛擬節點，不計入深度
+                        parent_count: 0
                     };
 
                     componentLookup.set(batchId, batchNode);
@@ -264,6 +298,16 @@ export class SbomProcessor {
         // 對所有原始組件進行檢查與平衡
         const originalRefs = Array.from(componentLookup.keys());
         originalRefs.forEach(ref => balanceTree(ref));
+
+        // --- 新增：計算每個組件的 parent_count (Fan-in) ---
+        for (const [parentRef, children] of dependencyMap.entries()) {
+            for (const childRef of children) {
+                const child = componentLookup.get(childRef);
+                if (child) {
+                    child.parent_count++;
+                }
+            }
+        }
 
         // 4. 定義前序遞迴 (根 -> 子)
         const traverse = (ref: string) => {
@@ -303,17 +347,33 @@ export class SbomProcessor {
     private printTreeStats(rootRef: string, dependencyMap: Map<string, string[]>, componentMap: Map<string, SbomComponent>) {
         let batchNodes = 0;
         let leafNodes = 0;
-        const visited = new Set<string>();
+
+        // Use memoization map instead of visited set
+        // Key: node ref, Value: maximum depth reached to that node
+        const depthMemo = new Map<string, number>();
 
         const getDepth = (ref: string, currentDepth: number): number => {
-            if (visited.has(ref)) return 0; // Avoid cycles if any
-            visited.add(ref);
+            // Check if we've already computed a deeper path to this node
+            const memoizedDepth = depthMemo.get(ref);
+            if (memoizedDepth !== undefined && memoizedDepth >= currentDepth) {
+                // We've already found a deeper or equal path; skip this branch
+                // console.log(`[Memo] 已訪問 ${ref}，當前深度 ${currentDepth}，已記錄深度 ${memoizedDepth}，跳過此分支`);
+                return memoizedDepth;
+            }
+
+            // Update memo with current depth (longest path so far)
+            depthMemo.set(ref, currentDepth);
+            console.log(`[Traverse] ${ref} (${ref}), depth: ${currentDepth}`);
 
             const children = dependencyMap.get(ref) || [];
+
+            // Count leaf nodes (nodes with no children)
             if (children.length === 0) {
                 leafNodes++;
                 return currentDepth;
             }
+
+            // Recurse to all children and track maximum depth
             let maxSubDepth = currentDepth;
             for (const child of children) {
                 maxSubDepth = Math.max(maxSubDepth, getDepth(child, currentDepth + 1));
@@ -339,104 +399,104 @@ export class SbomProcessor {
     }
 
 
-    public analyzeDependencies(sbomJson: any): {
-        sortedComponents: SbomComponent[],
-        componentMap: Map<string, SbomComponent>
-    } {
-        const componentsArray = sbomJson.components || [];
-        const dependenciesArray = sbomJson.dependencies || [];
+    // public analyzeDependencies(sbomJson: any): {
+    //     sortedComponents: SbomComponent[],
+    //     componentMap: Map<string, SbomComponent>
+    // } {
+    //     const componentsArray = sbomJson.components || [];
+    //     const dependenciesArray = sbomJson.dependencies || [];
 
-        const componentMap = new Map<string, SbomComponent>();
-        const validBomRefs = new Set<string>();
+    //     const componentMap = new Map<string, SbomComponent>();
+    //     const validBomRefs = new Set<string>();
 
-        // 1. 萃取並過濾有效組件，確保每個組件都有 Hash
-        for (const comp of componentsArray) {
-            const name = (comp?.name || "").toLowerCase();
-            const type = (comp?.type || "").toLowerCase();
-            const purl = (comp?.purl || "").toLowerCase();
-            const bomRef = comp['bom-ref'];
+    //     // 1. 萃取並過濾有效組件，確保每個組件都有 Hash
+    //     for (const comp of componentsArray) {
+    //         const name = (comp?.name || "").toLowerCase();
+    //         const type = (comp?.type || "").toLowerCase();
+    //         const purl = (comp?.purl || "").toLowerCase();
+    //         const bomRef = comp['bom-ref'];
 
-            if (!bomRef || !name || this.DROP_NAMES.has(name) || this.DROP_TYPES.has(type) || this.DROP_PURL_PREFIXES.some(pre => purl.startsWith(pre))) {
-                continue;
-            }
+    //         if (!bomRef || !name || this.DROP_NAMES.has(name) || this.DROP_TYPES.has(type) || this.DROP_PURL_PREFIXES.some(pre => purl.startsWith(pre))) {
+    //             continue;
+    //         }
 
-            let targetHash = "";
-            if (comp.hashes && Array.isArray(comp.hashes)) {
-                const sha256Prop = comp.hashes.find((p: any) => p.alg === 'SHA-256');
-                if (sha256Prop?.content) {
-                    targetHash = sha256Prop.content.toString().replace('0x', '').trim();
-                }
-            }
-            if (!targetHash) {
-                targetHash = crypto.createHash('sha256').update(`${name}@${comp.version || "unknown"}`).digest('hex');
-            }
+    //         let targetHash = "";
+    //         if (comp.hashes && Array.isArray(comp.hashes)) {
+    //             const sha256Prop = comp.hashes.find((p: any) => p.alg === 'SHA-256');
+    //             if (sha256Prop?.content) {
+    //                 targetHash = sha256Prop.content.toString().replace('0x', '').trim();
+    //             }
+    //         }
+    //         if (!targetHash) {
+    //             targetHash = crypto.createHash('sha256').update(`${name}@${comp.version || "unknown"}`).digest('hex');
+    //         }
 
-            const validComp: SbomComponent = {
-                bomRef, name: comp.name, version: comp.version || "unknown", hash: targetHash, type, purl, license: comp.license || "unknown", severity: comp.severity || "Unknown"
-            };
-            componentMap.set(bomRef, validComp);
-            validBomRefs.add(bomRef);
-        }
+    //         const validComp: SbomComponent = {
+    //             bomRef, name: comp.name, version: comp.version || "unknown", hash: targetHash, type, purl, license: comp.license || "unknown", severity: comp.severity || "Unknown"
+    //         };
+    //         componentMap.set(bomRef, validComp);
+    //         validBomRefs.add(bomRef);
+    //     }
 
-        // 2. 建立反向依賴圖 (Adjacency List) 用於由下而上的拓撲排序
-        // 圖的方向： B -> A (代表 A 依賴 B，所以 B 必須先被證明)
-        const adjList = new Map<string, string[]>();
-        const inDegree = new Map<string, number>();
+    //     // 2. 建立反向依賴圖 (Adjacency List) 用於由下而上的拓撲排序
+    //     // 圖的方向： B -> A (代表 A 依賴 B，所以 B 必須先被證明)
+    //     const adjList = new Map<string, string[]>();
+    //     const inDegree = new Map<string, number>();
 
-        // 初始化圖節點
-        for (const ref of validBomRefs) {
-            adjList.set(ref, []);
-            inDegree.set(ref, 0);
-        }
+    //     // 初始化圖節點
+    //     for (const ref of validBomRefs) {
+    //         adjList.set(ref, []);
+    //         inDegree.set(ref, 0);
+    //     }
 
-        // 填入邊 (Edges)
-        for (const dep of dependenciesArray) {
-            const parentRef = dep.ref;
-            if (!validBomRefs.has(parentRef)) continue;
+    //     // 填入邊 (Edges)
+    //     for (const dep of dependenciesArray) {
+    //         const parentRef = dep.ref;
+    //         if (!validBomRefs.has(parentRef)) continue;
 
-            const childrenRefs = dep.dependsOn || [];
-            for (const childRef of childrenRefs) {
-                if (!validBomRefs.has(childRef)) continue;
-                // B (child) -> A (parent)
-                adjList.get(childRef)!.push(parentRef);
-                inDegree.set(parentRef, inDegree.get(parentRef)! + 1);
-            }
-        }
+    //         const childrenRefs = dep.dependsOn || [];
+    //         for (const childRef of childrenRefs) {
+    //             if (!validBomRefs.has(childRef)) continue;
+    //             // B (child) -> A (parent)
+    //             adjList.get(childRef)!.push(parentRef);
+    //             inDegree.set(parentRef, inDegree.get(parentRef)! + 1);
+    //         }
+    //     }
 
-        // 3. 拓撲排序 (Kahn's Algorithm)
-        const queue: string[] = [];
-        const sortedComponents: SbomComponent[] = [];
+    //     // 3. 拓撲排序 (Kahn's Algorithm)
+    //     const queue: string[] = [];
+    //     const sortedComponents: SbomComponent[] = [];
 
-        // 找出所有入度為 0 的節點 (也就是最底層、不依賴別人的葉子套件)
-        for (const [ref, degree] of inDegree.entries()) {
-            if (degree === 0) queue.push(ref);
-        }
+    //     // 找出所有入度為 0 的節點 (也就是最底層、不依賴別人的葉子套件)
+    //     for (const [ref, degree] of inDegree.entries()) {
+    //         if (degree === 0) queue.push(ref);
+    //     }
 
-        while (queue.length > 0) {
-            const currentRef = queue.shift()!;
-            sortedComponents.push(componentMap.get(currentRef)!);
+    //     while (queue.length > 0) {
+    //         const currentRef = queue.shift()!;
+    //         sortedComponents.push(componentMap.get(currentRef)!);
 
-            for (const parentRef of adjList.get(currentRef)!) {
-                const currentDegree = inDegree.get(parentRef)! - 1;
-                inDegree.set(parentRef, currentDegree);
-                if (currentDegree === 0) {
-                    queue.push(parentRef);
-                }
-            }
-        }
+    //         for (const parentRef of adjList.get(currentRef)!) {
+    //             const currentDegree = inDegree.get(parentRef)! - 1;
+    //             inDegree.set(parentRef, currentDegree);
+    //             if (currentDegree === 0) {
+    //                 queue.push(parentRef);
+    //             }
+    //         }
+    //     }
 
-        // 檢查是否有循環依賴 (防禦機制)
-        if (sortedComponents.length !== validBomRefs.size) {
-            console.warn("[Warn] SBOM 依賴圖中存在循環依賴或孤立節點，部分組件可能無法正確排序！");
-            // 強制把沒排進去的補在最後面
-            const sortedRefs = new Set(sortedComponents.map(c => c.bomRef));
-            for (const ref of validBomRefs) {
-                if (!sortedRefs.has(ref)) sortedComponents.push(componentMap.get(ref)!);
-            }
-        }
+    //     // 檢查是否有循環依賴 (防禦機制)
+    //     if (sortedComponents.length !== validBomRefs.size) {
+    //         console.warn("[Warn] SBOM 依賴圖中存在循環依賴或孤立節點，部分組件可能無法正確排序！");
+    //         // 強制把沒排進去的補在最後面
+    //         const sortedRefs = new Set(sortedComponents.map(c => c.bomRef));
+    //         for (const ref of validBomRefs) {
+    //             if (!sortedRefs.has(ref)) sortedComponents.push(componentMap.get(ref)!);
+    //         }
+    //     }
 
-        return { sortedComponents, componentMap };
-    }
+    //     return { sortedComponents, componentMap };
+    // }
 
     public buildGraphFromComponents(components: SbomComponent[], dependencyMap: Map<string, string[]>): string {
         let dot = 'digraph DependencyGraph {\n';

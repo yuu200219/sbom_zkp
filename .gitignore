@@ -6,6 +6,7 @@ steel/
 
 # 這是 profiling 相關檔案
 sbom-risc0/sbom-verify/profile.pb
+sbom-risc0/sbom/
 
 node_modules/
 package.json

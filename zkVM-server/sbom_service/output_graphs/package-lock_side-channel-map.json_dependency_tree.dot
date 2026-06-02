@@ -1,0 +1,5 @@
+digraph DependencyGraph {
+    node [fontname="Arial", fontsize=10, shape=record];
+    rankdir=LR;
+    "01b6f51b554eca27" [label="{ express | 4.22.0 | 595d1b }", style=filled, fillcolor="#e1f5fe"];
+}

@@ -63,7 +63,7 @@ fn log_to_csv(
     comp_name: &str,
     cid: &str,
 ) {
-    let csv_path_str = format!("../../output/CSV/recursive/never_seen/verification_log.csv");
+    let csv_path_str = format!("../../output/CSV/recursive/verification/verification_log.csv");
     let path = Path::new(&csv_path_str);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_default();
@@ -260,7 +260,7 @@ fn main() {
                 println!("\n📊 批量驗證統計:");
                 println!("成功: {}", success_count);
                 println!("失敗: {}", fail_count);
-                println!("驗證結果已保存至: ../../output/CSV/recursive/never_seen/verification_log.csv");
+                println!("驗證結果已保存至: ../../output/CSV/recursive/verification/verification_log.csv");
             }
             Err(e) => {
                 eprintln!("❌ CSV 讀取失敗: {}", e);

@@ -53,14 +53,16 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
             preorderComponents = [],
             totalDurationMs = 0,
             dependencyMap = {}, // 預設值改為 {}，因為 JSON 傳過來就是 Object
-            componentMap = {}   // 預設值改為 {}
+            componentMap = {},   // 預設值改為 {}
+            depth = 0
         } = sbomRes.data;
 
         const sbomData = {
             components: preorderComponents,
             sbomServiceTotalDurationMs: totalDurationMs,
             dependencyMap: dependencyMap, // 確保是 { "id": ["id2"] }
-            componentMap: componentMap    // 確保是 { "id": { name: "..." } }
+            componentMap: componentMap,   // 確保是 { "id": { name: "..." } }
+            depth: depth
         };
         console.log(`[Node] SBOM 生成成功, Merkle Root: ${preorderComponents[0]?.merkleData?.merkleRoot}, 組件數量: ${sbomData.components.length}, 耗時: ${sbomData.sbomServiceTotalDurationMs}ms`);
 
@@ -90,13 +92,26 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
 
 
-        // 3. 自動將 Proof 存檔 (實驗留底)
+        // 3. 自動將 Proof 存檔 (實驗留底) - 使用流寫入避免字串大小限制
         const storagePath = path.join(process.cwd(), 'proofs');
         if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
 
         const fileName = `proof-${artifactId}-${Date.now()}.json`;
-        const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
-        fs.writeFileSync(path.join(storagePath, fileName), fileContent);
+        const filePath = path.join(storagePath, fileName);
+        
+        // 使用流寫入避免將整個 proof + journal 一次性載入記憶體
+        const writeStream = fs.createWriteStream(filePath);
+        writeStream.write(JSON.stringify({ artifactId }, null, 2).slice(0, -2)); // 寫入 artifactId，移除尾部的 }\n
+        writeStream.write(',\n  "proof": "');
+        writeStream.write(proof);
+        writeStream.write('",\n  "journal": "');
+        writeStream.write(journal);
+        writeStream.write('"\n}');
+        
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+        });
 
         console.log(`[Node] Proof 已存檔至: proofs/${fileName}`);
 
@@ -177,15 +192,28 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         // 2. 這裡可以同步或非同步執行上鏈交易
         // await submitToBlockchain(artifactId, proof);
 
-        // 3. 自動將 Proof 存檔 (實驗留底)
+        // 3. 自動將 Proof 存檔 (實驗留底) - 使用流寫入避免字串大小限制
         const storagePath = path.join(process.cwd(), 'proofs');
 
         if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
 
         const fileName = `proof-${artifactId}-${Date.now()}.json`;
-        const fileContent = JSON.stringify({ artifactId, proof, journal }, null, 2);
+        const filePath = path.join(storagePath, fileName);
+        
+        // 使用流寫入避免將整個 proof + journal 一次性載入記憶體
+        const writeStream = fs.createWriteStream(filePath);
+        writeStream.write(JSON.stringify({ artifactId }, null, 2).slice(0, -2)); // 寫入 artifactId，移除尾部的 }\n
+        writeStream.write(',\n  "proof": "');
+        writeStream.write(proof);
+        writeStream.write('",\n  "journal": "');
+        writeStream.write(journal);
+        writeStream.write('"\n}');
+        
+        await new Promise<void>((resolve, reject) => {
+            writeStream.on('finish', resolve);
+            writeStream.on('error', reject);
+        });
 
-        fs.writeFileSync(path.join(storagePath, fileName), fileContent);
         console.log(`💾 Proof 已存檔至: proofs/${fileName}`);
 
         // // 連接到 ipfs 並將 proof 上傳到 ipfs
