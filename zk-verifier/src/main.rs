@@ -11,11 +11,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 struct VerifyMetrics {
-    cycle: u64,
+    total_cycles: u64,
+    user_cycles: u64,
     depth: usize,
     verify_duration: f64,
     children_count: usize,
     parent_count: usize,
+    descendants_count: usize,
     receipt_size_kb: f64,
     seal_size_kb: f64,
 }
@@ -28,12 +30,14 @@ struct StoredProof {
 
 #[derive(Debug, Deserialize)]
 struct InputRow {
-    cycle: u64,
+    total_cycles: u64,
+    user_cycles: u64,
     depth: usize,
     #[serde(rename = "pure_prove_duration")]
     pure_prove_duration: f64,
     children_count: usize,
     parent_count: usize,
+    descendants_count: usize,
     receipt_size_kb: f64,
     #[serde(rename = "seal_size_kb")]
     seal_size_kb: f64,
@@ -81,15 +85,17 @@ fn log_to_csv(
             .from_writer(file);
         
         if !file_exists {
-            wtr.write_record(&["cycle", "depth", "verify_duration", "children_count", "parent_count", "receipt_size_kb", "seal_size_kb", "comp_name", "cid"]).unwrap_or_default();
+            wtr.write_record(&["total_cycles", "user_cycles", "depth", "verify_duration", "children_count", "parent_count", "descendants_count", "receipt_size_kb", "seal_size_kb", "comp_name", "cid"]).unwrap_or_default();
         }
         
         wtr.write_record(&[
-            metrics.cycle.to_string(),
+            metrics.total_cycles.to_string(),
+            metrics.user_cycles.to_string(),
             metrics.depth.to_string(),
             metrics.verify_duration.to_string(),
             metrics.children_count.to_string(),
             metrics.parent_count.to_string(),
+            metrics.descendants_count.to_string(),
             metrics.receipt_size_kb.to_string(),
             metrics.seal_size_kb.to_string(),
             comp_name.to_string(),
@@ -136,7 +142,14 @@ fn verify_single(
     // 首先尝试解析为 bincode 格式（Rust Prover 直接上传的格式）
     let receipt = match bincode::deserialize::<StoredProof>(raw_data) {
         Ok(stored_proof) => {
-            println!("[-] {} - 偵測到 bincode 格式，直接使用。", comp_name);
+            let stored_id_hex = stored_proof.image_id.iter().flat_map(|n| n.to_le_bytes()).map(|b| format!("{:02x}", b)).collect::<String>();
+            let cli_id_hex = hex::encode(image_id.as_bytes());
+            
+            if stored_id_hex != cli_id_hex {
+                println!("⚠️ [警告] {} - Proof 內含的 Image ID (0x{}) 與你指定的 Image ID (0x{}) 不符！即將拋出驗證失敗。", comp_name, &stored_id_hex[..8], &cli_id_hex[..8]);
+            } else {
+                println!("[-] {} - 偵測到 bincode 格式，Image ID 吻合。", comp_name);
+            }
             stored_proof.receipt
         }
         Err(_) => {
@@ -191,18 +204,16 @@ fn verify_single(
 
     let verify_duration = verify_start.elapsed().as_millis() as f64;
 
-    // Note: Cycle information is not directly available from the receipt after verification
-    // It's only available from the prover's output. Using 0 as placeholder.
-    let cycle = 0u64;
-
     // Extract depth and children_count from the JSON journal if possible
     // For now, we'll use default values as these come from the input CSV
     let metrics = VerifyMetrics {
-        cycle,
+        total_cycles: 0,
+        user_cycles: 0,
         depth: 0,  // Will be overridden by CSV data
         verify_duration,
         children_count: 0,  // Will be overridden by CSV data
         parent_count: 0,    // Will be overridden by CSV data
+        descendants_count: 0,  // Will be overridden by CSV data
         receipt_size_kb,
         seal_size_kb,
     };
@@ -236,11 +247,13 @@ fn main() {
                             match verify_single(&raw_data, image_id, &row.comp_name, &row.cid) {
                                 Ok(mut metrics) => {
                                     // Override metrics with CSV data
-                                    metrics.cycle = row.cycle;
+                                    metrics.total_cycles = row.total_cycles;
+                                    metrics.user_cycles = row.user_cycles;
                                     metrics.depth = row.depth;
                                     metrics.children_count = row.children_count;
                                     metrics.parent_count = row.parent_count;
-                                    
+                                    metrics.descendants_count = row.descendants_count;
+
                                     log_to_csv(&metrics, &row.comp_name, &row.cid);
                                     success_count += 1;
                                 }

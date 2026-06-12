@@ -42,6 +42,7 @@ struct ProveMetrics {
     pure_prove_duration: f64,
     children_count: usize,
     parent_count: usize,
+    descendants_count: usize,
     receipt_size_kb: f64,
     seal_size_kb: f64,
     compression_duration: f64,
@@ -102,7 +103,7 @@ fn log_to_csv(
         if !file_exists {
             wtr.write_record(&[
                 "total_cycles", "user_cycles", "segments", "depth", "pure_prove_duration", 
-                "children_count", "parent_count", "receipt_size_kb", "seal_size_kb", 
+                "children_count", "parent_count", "descendants_count", "receipt_size_kb", "seal_size_kb", 
                 "compression_duration", "guest_io_read", "guest_dependency_check", 
                 "guest_severity_check", "guest_merkle_io_read", "guest_merkle_check",
                 "comp_name", "cid"
@@ -117,6 +118,7 @@ fn log_to_csv(
             metrics.pure_prove_duration.to_string(),
             metrics.children_count.to_string(),
             metrics.parent_count.to_string(),
+            metrics.descendants_count.to_string(),
             metrics.receipt_size_kb.to_string(),
             metrics.seal_size_kb.to_string(),
             metrics.compression_duration.to_string(),
@@ -205,6 +207,7 @@ async fn run_risc0_prover(
     let bom_ref = comp_input.bom_ref.clone();
     let children_count = comp_input.dependency_hashes.len();
     let parent_count = comp_input.parent_count;
+    let descendants_count = comp_input.descendants_count;
     let labels = [
         ("component_name", comp_input.name.clone()), // 如果只是為了辨識，留 name 即可
         ("node_type", comp_input.comp_type.clone()), // "leaf" 或 "virtual-batch"
@@ -212,6 +215,7 @@ async fn run_risc0_prover(
         ("depth", depth.to_string()),                        
         ("children_count", children_count.to_string()),
         ("parent_count", parent_count.to_string()),
+        ("descendants_count", descendants_count.to_string()),
     ];
     let labels_for_task = labels.clone();
 
@@ -296,6 +300,7 @@ async fn run_risc0_prover(
         pure_prove_duration,
         children_count,
         parent_count,
+        descendants_count,
         receipt_size_kb,
         seal_size_kb,
         compression_duration,
@@ -460,6 +465,7 @@ async fn prove_component_recursive(
         dependency_hashes: children_hashes,
         depth: comp["depth"].as_u64().unwrap_or(0) as usize,
         parent_count: comp["parent_count"].as_u64().unwrap_or(0) as usize,
+        descendants_count: comp["descendants_count"].as_u64().unwrap_or(0) as usize,
     };
 
     // println!("[-] 正在證明套件: {}", comp_name);

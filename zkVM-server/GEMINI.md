@@ -15,3 +15,5 @@
           └── [child-B1] ...
     ```
     接下來，node.js router 接收到我們的 `sbom.json` 與 dependency graph，接著就把這些內容，送到我們的 Rust Prover。Rust prover 是使用 RISC Zero framework 進行開發，會分成 host / guest 兩個部分。host 主要功能就是接收參數，如我們的 sbom.json, dependency graph，guest 會定義我們的安全性檢查 (如 severity check, license check, Merkle tree membership check, etc)。
+- Difference between @rust-prover-recursive and @rust-prover-api
+    `rust-prover-api` 與 `rust-prover-recursive` 的目標是一樣的，但是實作方式不一樣。`rust-prover-api`是sequential way來處理proving，而`rust-prover-recursive`則是透過遞迴的方式處理。 他們都會連上ipfs進行上傳或是下載進行驗證。效率上會差很多。假設某個dependency package更新了，sequential way 因為不具memorization的功能，整棵樹都要重新生成證明，也就是不管我上傳什麼檔案 他都會重頭到尾重新證明。而recursive則不同，他具有memorization的能力，如同 `rust-prover-recursive`所寫的，這就是best-practice了。

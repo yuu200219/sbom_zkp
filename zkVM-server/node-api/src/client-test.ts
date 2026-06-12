@@ -103,9 +103,9 @@ const serverlessLockFile = '../../sbom-risc0/sbom/serverless/package-lock.json';
 (async () => {
     // await testGenerateAndProve(semanticKernelLockFile, "semantic-kernel", "1.14.2");
 
-    await testGenerateAndProve(nemoLockFile, "nemo", "1.0.0");
+    // await testGenerateAndProve(nemoLockFile, "NeMo", "1.0.0");
 
-    // await testGenerateAndProve(serverlessLockFile, "serverless", "3.0.0");
+    await testGenerateAndProve(serverlessLockFile, "serverless", "3.0.0");
     // await testGenerateAndProve(expressLockFile, "express", "4.22.0");
     // await testGenerateAndProve(expressLockFile, "express", "4.22.0");
     // await testGenerateAndProve(expressLockfile_d4, "express", "4.22.0");

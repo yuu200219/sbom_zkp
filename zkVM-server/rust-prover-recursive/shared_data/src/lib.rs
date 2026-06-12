@@ -22,6 +22,7 @@ pub struct ComponentInput {
     pub dependency_hashes: Vec<[u8; 32]>,
     pub depth: usize,
     pub parent_count: usize,
+    pub descendants_count: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

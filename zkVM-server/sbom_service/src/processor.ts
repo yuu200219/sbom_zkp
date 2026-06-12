@@ -36,6 +36,7 @@ export interface SbomComponent {
     severity: string;
     depth: number; // 最深路徑深度
     parent_count: number; // 新增：被依賴的次數 (Fan-in)
+    descendants_count: number; // 新增：後代節點總數 (Fan-out)
     merkleData?: MerkleData;
 }
 
@@ -48,6 +49,76 @@ export class SbomProcessor {
     private readonly DROP_TYPES = new Set(["file"]);
     private readonly DROP_PURL_PREFIXES = ["file:", "exe:", "generic:"];
     private readonly PADDING_VALUE = '0'.repeat(64);
+
+    /**
+     * 計算一個節點的所有後代數量
+     * @param componentRef - 起始節點的 bomRef
+     * @param dependencyMap - 整體相依關係圖
+     * @param memo - 用於快取已計算過的節點結果，避免重複計算
+     * @returns 該節點的後代總數
+     */
+    private countDescendants(
+        componentRef: string,
+        dependencyMap: Map<string, string[]>,
+        memo: Map<string, number>
+    ): number {
+        if (memo.has(componentRef)) {
+            return memo.get(componentRef)!;
+        }
+
+        const children = dependencyMap.get(componentRef) || [];
+        if (children.length === 0) {
+            return 0;
+        }
+
+        const directDescendants = new Set(children);
+
+        for (const childRef of children) {
+            // 遞迴計算子節點的後代
+            this.countDescendants(childRef, dependencyMap, memo);
+            // 將子節點的後代們也加入到當前節點的後代集合中
+            const grandChildren = this.getDescendantsSet(childRef, dependencyMap, new Map());
+            grandChildren.forEach(gc => directDescendants.add(gc));
+        }
+
+        const count = directDescendants.size;
+        memo.set(componentRef, count);
+        return count;
+    }
+
+    /**
+     * 輔助函式：取得一個節點的所有後代集合（用於 countDescendants）
+     */
+    private getDescendantsSet(
+        componentRef: string,
+        dependencyMap: Map<string, string[]>,
+        memoSet: Map<string, Set<string>>
+    ): Set<string> {
+        if (memoSet.has(componentRef)) {
+            return memoSet.get(componentRef)!;
+        }
+
+        const descendants = new Set<string>();
+        const queue: string[] = [...(dependencyMap.get(componentRef) || [])];
+
+        const visited = new Set<string>(queue);
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            descendants.add(current);
+
+            for (const child of (dependencyMap.get(current) || [])) {
+                if (!visited.has(child)) {
+                    visited.add(child);
+                    queue.push(child);
+                }
+            }
+        }
+
+        memoSet.set(componentRef, descendants);
+        return descendants;
+    }
+
 
     // public extractLeaves(sbomJson: any): { leaves: string[], leafInfo: { name: string, version: string }[] } {
     //     const leaves: string[] = [];
@@ -153,7 +224,8 @@ export class SbomProcessor {
                 license: c.licenses?.[0]?.license?.id || 'Unknown',
                 severity: 'Unknown',
                 depth: 0, // 初始化，將在後續計算
-                parent_count: 0
+                parent_count: 0,
+                descendants_count: 0 // 初始化
             });
         });
 
@@ -221,7 +293,8 @@ export class SbomProcessor {
             license: "Unknown",
             severity: "Unknown",
             depth: 0, // 初始化，將在後續計算
-            parent_count: 0
+            parent_count: 0,
+            descendants_count: 0 // 初始化
         };
         componentLookup.set(virtualRootRef, virtualRoot);
 
@@ -282,7 +355,8 @@ export class SbomProcessor {
                         license: "Unknown",
                         severity: "Unknown",
                         depth: 0,  // 虛擬節點，不計入深度
-                        parent_count: 0
+                        parent_count: 0,
+                        descendants_count: 0 // 初始化
                     };
 
                     componentLookup.set(batchId, batchNode);
@@ -307,6 +381,12 @@ export class SbomProcessor {
                     child.parent_count++;
                 }
             }
+        }
+
+        // --- 新增：計算每個組件的 descendants_count (Fan-out) ---
+        const descendantsMemo = new Map<string, number>();
+        for (const [ref, component] of componentLookup.entries()) {
+            component.descendants_count = this.countDescendants(ref, dependencyMap, descendantsMemo);
         }
 
         // 4. 定義前序遞迴 (根 -> 子)

@@ -1,4 +1,4 @@
-use shared_core::MerkleInput; // 確保你的資料結構已定義在某處
+use shared_data::MerkleInput; // 確保你的資料結構已定義在某處
 use axum::{routing::post, Json, Router, response::IntoResponse, http::StatusCode};
 use methods::{GUEST_CODE_FOR_ZKP_ELF, GUEST_CODE_FOR_ZKP_ID};
 use risc0_zkvm::{default_prover, ExecutorEnv};
@@ -138,21 +138,29 @@ async fn handle_prove(
     // 4. 序列化結果並回傳
     let proof_encoded = hex::encode(bincode::serialize(&receipt.inner).expect("Serialize InnerReceipt failed"));
     let journal_encoded = hex::encode(receipt.journal.bytes.clone());
-    let proveTime = start_calc.elapsed().as_millis();
+    let prove_time = start_calc.elapsed().as_millis();
     // 這裡直接回傳 Json，它會自動實作 IntoResponse
     Json(ProveResponse {
         proof: proof_encoded,
         journal: journal_encoded,
-        prove_duration_ms: proveTime,
+        prove_duration_ms: prove_time,
     }).into_response()
 }
 #[tokio::main]
 async fn main() {
     let image_id_hex = GUEST_CODE_FOR_ZKP_ID
         .iter()
-        .flat_map(|n| n.to_be_bytes()) // 轉為大端序位元組
+        .flat_map(|n| n.to_le_bytes()) // 轉為小端序位元組，對齊 recursive
         .map(|b| format!("{:02x}", b))
         .collect::<String>();
+
+    // 將 Image ID 存入 .env.local 檔案，方便後續查詢
+    let env_path = std::path::Path::new(".env.local");
+    let image_id_entry = format!("IMAGE_ID=0x{}\n", image_id_hex);
+    match std::fs::write(env_path, &image_id_entry) {
+        Ok(_) => println!("✅ Image ID 已保存至 .env.local"),
+        Err(e) => println!("⚠️  無法保存 Image ID 至 .env.local: {}", e),
+    }
 
     println!("========================================");
     println!("🚀 ZK Prover Server 啟動中...");
