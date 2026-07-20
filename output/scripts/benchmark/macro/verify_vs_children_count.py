@@ -68,6 +68,7 @@ def linear_model(x, a, b):
 
 def main():
     df = load_data()
+    df = df[df['children_count'] <= 50]
     if df is None: return
     
     

@@ -1,0 +1,19 @@
+[package]
+name = "guest_code_for_zkp"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+risc0-zkvm = { version = "^3.0.5", default-features = false, features = [
+    'std',
+] }
+
+# 共享的資料結構
+shared_data = { path = "../../shared_data" }
+
+serde = { version = "1.0", features = ["derive"] }
+
+sha2 = { version = "0.10", default-features = false }
+hex = { version = "0.4", default-features = false }

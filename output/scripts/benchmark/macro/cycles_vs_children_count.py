@@ -8,7 +8,6 @@ CSV_FILES = [
     os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/semantic-kernel_experiment_log.csv'),
     os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/nemo_experiment_log.csv'),
     os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/express_experiment_log.csv'),
-    # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/serverless_experiment_log.csv'), 
     os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/flask_experiment_log.csv')
 ]
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, '../../../png/recursive/benchmark/')
@@ -33,7 +32,7 @@ def load_data():
 def main():
     df = load_data()
     if df is None: return
-    
+    df = df[df['children_count'] < 50]
     
     
     sns.set_theme(style="whitegrid")

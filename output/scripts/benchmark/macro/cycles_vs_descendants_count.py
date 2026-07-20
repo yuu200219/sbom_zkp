@@ -5,13 +5,14 @@ import seaborn as sns
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILES = [
-    os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/semantic-kernel_experiment_log.csv'),
-    os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/nemo_experiment_log.csv'),
-    os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/express_experiment_log.csv'),
+    # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/semantic-kernel_experiment_log.csv'),
+    # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/nemo_experiment_log.csv'),
+    # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/express_experiment_log.csv'),
     # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/serverless_experiment_log.csv'), 
-    os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/flask_experiment_log.csv')
+    # os.path.join(SCRIPT_DIR, '../../../CSV/recursive/never_seen/flask_experiment_log.csv')
+    os.path.join(SCRIPT_DIR, '../../../CSV/recursive_opt/never_seen/express_experiment_log.csv'),
 ]
-OUTPUT_DIR = os.path.join(SCRIPT_DIR, '../../../png/recursive/benchmark/')
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, '../../../png/recursive_opt/benchmark/')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def load_data():
@@ -32,6 +33,7 @@ def load_data():
 
 def main():
     df = load_data()
+    df = df[df['descendants_count'] <= 50]
     if df is None: return
     
     df = df[df['descendants_count'] <= 50]
