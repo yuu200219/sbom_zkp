@@ -26,3 +26,5 @@ zkVM-server/sbom_service/package-lock.json
 zkVM-server/sbom_service/package.json
 
 zk-verifier/target/
+
+source_code.zip

@@ -72,48 +72,74 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         // console.log("[Debug] dependencyMap keys:", Object.keys(dependencyMap).slice(0, 5));
         // console.log("[Debug] componentMap first few keys:", Object.keys(Object.fromEntries(componentMap)).slice(0, 3));
 
-        console.time(`ZK-Proving-${artifactId}`); // 實驗數據埋點：開始計時
+        const timerLabel = `ZK-Proving-${artifactId}-${Date.now()}`;
+        console.time(timerLabel);
         console.log(`[Node] 正在為 ${artifactId} 請求零知識證明...`);
 
         // 1. 呼叫遠端 Axum Host (Rust)
-        const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
-            artifactId,
-            treeData: sbomData
-        }, {
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            timeout: 0,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity
-        });
 
-        const { proof, journal, rootCid: root_cid, prove_duration_ms } = response.data;
-        console.timeEnd(`ZK-Proving-${artifactId}`); // 實驗數據埋點：結束計時
+        try {
+            const response = await axios.post(`${RUST_PROVER_URL}/prove`, {
+                artifactId,
+                treeData: sbomData
+            }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 0,
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            });
 
+            const { proof, journal, rootCid: root_cid, prove_duration_ms } = response.data;
+
+            res.status(200).json({
+                success: true,
+                proof,
+                journal,
+                root_cid,
+                merkleRoot: sbomData.components[0]?.merkleData?.merkleRoot,
+                componentsAnalyzed: sbomData.components.length,
+                time: {
+                    'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
+                    'proveDurationMs': response.data.proveDurationMs,
+                    // 'ipfsUploadMs': ipfsTime,
+                    'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs + response.data.proveDurationMs
+                },
+                // ipfs: ipfsHash ? {
+                //     cid: ipfsHash,
+                //     url: `https://ipfs.io/ipfs/${ipfsHash}`
+                // } : 'failed'
+            });
+
+        } catch (error: any) {
+            console.error(`流程錯誤: Request failed with status code ${error.response?.status}`);
+            console.error("詳細錯誤訊息:", error.response?.data); // 印出 Rust 後端回傳的具體錯誤
+        } finally {
+            // 無論成功或拋出 400 錯誤，finally 都會執行，確保計時器被正確關閉
+            console.timeEnd(timerLabel);
+        }
 
         // 3. 自動將 Proof 存檔 (實驗留底) - 使用流寫入避免字串大小限制
-        const storagePath = path.join(process.cwd(), 'proofs');
-        if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
+        // const storagePath = path.join(process.cwd(), 'proofs');
+        // if (!fs.existsSync(storagePath)) fs.mkdirSync(storagePath); // 確保資料夾存在
 
-        const fileName = `proof-${artifactId}-${Date.now()}.json`;
-        const filePath = path.join(storagePath, fileName);
-        
-        // 使用流寫入避免將整個 proof + journal 一次性載入記憶體
-        const writeStream = fs.createWriteStream(filePath);
-        writeStream.write(JSON.stringify({ artifactId }, null, 2).slice(0, -2)); // 寫入 artifactId，移除尾部的 }\n
-        writeStream.write(',\n  "proof": "');
-        writeStream.write(proof);
-        writeStream.write('",\n  "journal": "');
-        writeStream.write(journal);
-        writeStream.write('"\n}');
-        
-        await new Promise<void>((resolve, reject) => {
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-        });
+        // const fileName = `proof-${artifactId}-${Date.now()}.json`;
+        // const filePath = path.join(storagePath, fileName);
 
-        console.log(`[Node] Proof 已存檔至: proofs/${fileName}`);
+        // // 使用流寫入避免將整個 proof + journal 一次性載入記憶體
+        // const writeStream = fs.createWriteStream(filePath);
+        // writeStream.write(JSON.stringify({ artifactId }, null, 2).slice(0, -2)); // 寫入 artifactId，移除尾部的 }\n
+        // writeStream.write(',\n  "proof": "');
+        // writeStream.write(proof);
+        // writeStream.write('",\n  "journal": "');
+        // writeStream.write(journal);
+        // writeStream.write('"\n}');
+
+        // await new Promise<void>((resolve, reject) => {
+        //     writeStream.on('finish', resolve);
+        //     writeStream.on('error', reject);
+        // });
+
+        // console.log(`[Node] Proof 已存檔至: proofs/${fileName}`);
 
         // 連接到 ipfs 並將 proof 上傳到 ipfs
         // let ipfsHash = "";
@@ -137,24 +163,7 @@ app.post('/api/generate-and-prove', upload.single('file'), async (req: Request, 
         // }
         // const ipfsTime = performance.now() - ipfsStart;
 
-        res.status(200).json({
-            success: true,
-            proof,
-            journal,
-            root_cid,
-            merkleRoot: sbomData.components[0]?.merkleData?.merkleRoot,
-            componentsAnalyzed: sbomData.components.length,
-            time: {
-                'sbomServiceTotalDurationMs': sbomData.sbomServiceTotalDurationMs,
-                'proveDurationMs': response.data.proveDurationMs,
-                // 'ipfsUploadMs': ipfsTime,
-                'totalProcessTimeMs': sbomData.sbomServiceTotalDurationMs + response.data.proveDurationMs
-            },
-            // ipfs: ipfsHash ? {
-            //     cid: ipfsHash,
-            //     url: `https://ipfs.io/ipfs/${ipfsHash}`
-            // } : 'failed'
-        });
+
 
 
     } catch (error: any) {
@@ -199,7 +208,7 @@ app.post('/api/prove', async (req: Request, res: Response) => {
 
         const fileName = `proof-${artifactId}-${Date.now()}.json`;
         const filePath = path.join(storagePath, fileName);
-        
+
         // 使用流寫入避免將整個 proof + journal 一次性載入記憶體
         const writeStream = fs.createWriteStream(filePath);
         writeStream.write(JSON.stringify({ artifactId }, null, 2).slice(0, -2)); // 寫入 artifactId，移除尾部的 }\n
@@ -208,7 +217,7 @@ app.post('/api/prove', async (req: Request, res: Response) => {
         writeStream.write('",\n  "journal": "');
         writeStream.write(journal);
         writeStream.write('"\n}');
-        
+
         await new Promise<void>((resolve, reject) => {
             writeStream.on('finish', resolve);
             writeStream.on('error', reject);

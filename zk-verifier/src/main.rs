@@ -60,6 +60,10 @@ struct Args {
     /// CSV 檔案路徑，用來批量驗證
     #[arg(short, long)]
     csv_path: Option<String>,
+
+    /// 輸入的 SHA-256 哈希值，用來比對 Journal 中的 TARGET_HASH
+    #[arg(short, long)]
+    sha256: Option<String>,
 }
 
 fn log_to_csv(
@@ -67,7 +71,7 @@ fn log_to_csv(
     comp_name: &str,
     cid: &str,
 ) {
-    let csv_path_str = format!("../../output/CSV/recursive/verification/verification_log.csv");
+    let csv_path_str = format!("../../output/CSV/recursive_opt/verification/verification_log.csv");
     let path = Path::new(&csv_path_str);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_default();
@@ -136,10 +140,11 @@ fn verify_single(
     image_id: Digest,
     comp_name: &str,
     cid: &str,
+    expected_sha256: Option<&str>,
 ) -> Result<VerifyMetrics, String> {
     let verify_start = Instant::now();
     
-    // 首先尝试解析为 bincode 格式（Rust Prover 直接上传的格式）
+    // 首先尝试解析為 bincode 格式（Rust Prover 直接上傳的格式）
     let receipt = match bincode::deserialize::<StoredProof>(raw_data) {
         Ok(stored_proof) => {
             let stored_id_hex = stored_proof.image_id.iter().flat_map(|n| n.to_le_bytes()).map(|b| format!("{:02x}", b)).collect::<String>();
@@ -202,6 +207,36 @@ fn verify_single(
     receipt.verify(image_id)
         .map_err(|e| format!("驗證失敗: {}", e))?;
 
+    // 比對 SHA-256 (TARGET_HASH)
+    if let Some(expected_hex) = expected_sha256 {
+        let expected_bytes = hex::decode(expected_hex.trim_start_matches("0x"))
+            .map_err(|e| format!("期望的 SHA-256 格式錯誤: {}", e))?;
+        if expected_bytes.len() != 32 {
+            return Err("期望的 SHA-256 長度必須是 32 位組 (64 字元)".to_string());
+        }
+
+        let journal_bytes = &receipt.journal.bytes;
+        if journal_bytes.len() < 64 {
+            return Err(format!("Journal 長度不足 ({})，無法提取 TARGET_HASH", journal_bytes.len()));
+        }
+
+        let target_hash_in_journal = &journal_bytes[32..64];
+        if target_hash_in_journal != expected_bytes {
+            return Err(format!(
+                "SHA-256 比對失敗！\n  輸入值: {}\n  證明內之 TARGET_HASH: {}",
+                hex::encode(&expected_bytes),
+                hex::encode(target_hash_in_journal)
+            ));
+        } else {
+            println!("✅ SHA-256 比對成功！證明內之 TARGET_HASH 與輸入值相符。");
+        }
+    } else {
+        let journal_bytes = &receipt.journal.bytes;
+        if journal_bytes.len() >= 64 {
+            println!("[-] 證明中之 TARGET_HASH: 0x{}", hex::encode(&journal_bytes[32..64]));
+        }
+    }
+
     let verify_duration = verify_start.elapsed().as_millis() as f64;
 
     // Extract depth and children_count from the JSON journal if possible
@@ -244,7 +279,7 @@ fn main() {
                     
                     match download_from_ipfs(&row.cid) {
                         Ok(raw_data) => {
-                            match verify_single(&raw_data, image_id, &row.comp_name, &row.cid) {
+                            match verify_single(&raw_data, image_id, &row.comp_name, &row.cid, args.sha256.as_deref()) {
                                 Ok(mut metrics) => {
                                     // Override metrics with CSV data
                                     metrics.total_cycles = row.total_cycles;
@@ -323,6 +358,39 @@ fn main() {
                 println!("✅ [SUCCESS] 驗證成功！");
                 println!("該證明確實由指定的 Guest Program 生成，且資料未經竄改。");
                 println!("驗證耗時: {} ms", verify_time);
+
+                // 比對 SHA-256 (TARGET_HASH)
+                if let Some(ref expected_hex) = args.sha256 {
+                    let expected_bytes = hex::decode(expected_hex.trim_start_matches("0x"))
+                        .expect("期望的 SHA-256 格式錯誤");
+                    if expected_bytes.len() != 32 {
+                        eprintln!("❌ [FAILED] 期望的 SHA-256 長度必須是 32 位組 (64 字元)");
+                        std::process::exit(1);
+                    }
+
+                    let journal_bytes = &receipt.journal.bytes;
+                    if journal_bytes.len() < 64 {
+                        eprintln!("❌ [FAILED] Journal 長度不足 ({})，無法提取 TARGET_HASH", journal_bytes.len());
+                        std::process::exit(1);
+                    }
+
+                    let target_hash_in_journal = &journal_bytes[32..64];
+                    if target_hash_in_journal != expected_bytes {
+                        eprintln!(
+                            "❌ [FAILED] SHA-256 比對失敗！\n  輸入值: {}\n  證明內之 TARGET_HASH: {}",
+                            hex::encode(&expected_bytes),
+                            hex::encode(target_hash_in_journal)
+                        );
+                        std::process::exit(1);
+                    } else {
+                        println!("✅ [SUCCESS] SHA-256 比對成功！證明內之 TARGET_HASH 與輸入值相符。");
+                    }
+                } else {
+                    let journal_bytes = &receipt.journal.bytes;
+                    if journal_bytes.len() >= 64 {
+                        println!("[-] 證明中之 TARGET_HASH: 0x{}", hex::encode(&journal_bytes[32..64]));
+                    }
+                }
             }
             Err(e) => {
                 println!("❌ [FAILED] 驗證失敗: {}", e);

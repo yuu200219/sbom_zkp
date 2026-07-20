@@ -55,6 +55,16 @@ async function testGenerateAndProve(filePath: string, artifactId: string, versio
     }
 }
 
+const writeNewline = () => {
+    const csvPath = '../../output/CSV/sequential/experiment_log.csv';
+    try {
+        // 使用 appendFileSync 將換行符號 (\n) 附加到檔案末尾
+        fs.appendFileSync(csvPath, '\n', 'utf8');
+    } catch (err) {
+        console.error("❌ 無法寫入換行符號到 CSV:", err);
+    }
+};
+
 // --- 測試區 ---
 
 // 測試案例 A: Python 需求檔
@@ -70,14 +80,19 @@ const reactLockfile = '../../sbom-risc0/sbom/react/yarn.lock';
 const axiosLockFile = '../../sbom-risc0/sbom/axios/package-lock.json';
 const awscliLockFile = '../../sbom-risc0/sbom/aws-cli/requirements-dev-lock.txt';
 
-const expressLockFile = '../../sbom-risc0/sbom/express/package-lock.json';
+const expressLockFile = '../../sbom-risc0/sbom/express/package-lock_origin/package-lock.json';
 
-const expressLockFile_d6 = '../../sbom-risc0/sbom/express/package-lock_side-channel-map.json';
-const expressLockfile_d5 = '../../sbom-risc0/sbom/express/package-lock_side-channel-weakmap.json';
-const expressLockfile_d4 = '../../sbom-risc0/sbom/express/package-lock_side-channel.json';
-const expressLockfile_d3 = '../../sbom-risc0/sbom/express/package-lock_qs.json';
-const expressLockfile_d2 = '../../sbom-risc0/sbom/express/package-lock_body-parser.json';
-const expressLockfile_d1 = '../../sbom-risc0/sbom/express/package-lock_express.json';
+const expressLockfileD12 = '../../sbom-risc0/sbom/express/package-lock_d12/package-lock.json';
+const expressLockfileD11 = "../../sbom-risc0/sbom/express/package-lock_d11/package-lock.json";
+const expressLockfileD10 = "../../sbom-risc0/sbom/express/package-lock_d10/package-lock.json";
+const expressLockfileD9 = "../../sbom-risc0/sbom/express/package-lock_d9/package-lock.json";
+const expressLockfileD8 = "../../sbom-risc0/sbom/express/package-lock_d8/package-lock.json";
+const expressLockfileD7 = "../../sbom-risc0/sbom/express/package-lock_d7/package-lock.json";
+const expressLockfileD6 = "../../sbom-risc0/sbom/express/package-lock_d6/package-lock.json";
+const expressLockfileD5 = "../../sbom-risc0/sbom/express/package-lock_d5/package-lock.json";
+const expressLockfileD4 = "../../sbom-risc0/sbom/express/package-lock_d4/package-lock.json";
+const expressLockfileD3 = "../../sbom-risc0/sbom/express/package-lock_d3/package-lock.json";
+const expressLockfileD2 = "../../sbom-risc0/sbom/express/package-lock_d2/package-lock.json";
 
 const semanticKernelLockFile = '../../sbom-risc0/sbom/semantic-kernel/python/uv.lock';
 
@@ -105,13 +120,34 @@ const serverlessLockFile = '../../sbom-risc0/sbom/serverless/package-lock.json';
 
     // await testGenerateAndProve(nemoLockFile, "NeMo", "1.0.0");
 
-    await testGenerateAndProve(serverlessLockFile, "serverless", "3.0.0");
-    // await testGenerateAndProve(expressLockFile, "express", "4.22.0");
-    // await testGenerateAndProve(expressLockFile, "express", "4.22.0");
-    // await testGenerateAndProve(expressLockfile_d4, "express", "4.22.0");
-    // await testGenerateAndProve(expressLockfile_d3, "express", "4.22.0");
-    // await testGenerateAndProve(expressLockfile_d2, "express", "4.22.0");
-    // await testGenerateAndProve(expressLockfile_d1, "express", "4.22.0");
+
+    await testGenerateAndProve(expressLockFile, "express", "4.22.0");
+    // await testGenerateAndProve(flaskServerLockfileNewest, "flask", "3.1.3");
+    // await testGenerateAndProve(semanticKernelLockFile, "semantic-kernel", "1.14.2");
+    // await testGenerateAndProve(nemoLockFile, "NeMo", "1.0.0");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD12, "express", "4.22.0-d12");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD11, "express", "4.22.0-d11");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD10, "express", "4.22.0-d10");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD9, "express", "4.22.0-d9");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD8, "express", "4.22.0-d8");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD7, "express", "4.22.0-d7");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD6, "express", "4.22.0-d6");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD5, "express", "4.22.0-d5");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD4, "express", "4.22.0-d4");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD3, "express", "4.22.0-d3");
+    // writeNewline();
+    // await testGenerateAndProve(expressLockfileD2, "express", "4.22.0-d2");
+    // writeNewline();
     // console.log("=== 開始實驗：原始檔案生成 zk proof ===");
     // await testGenerateAndProve(flaskServerLockfileNewest, "flask", "3.1.3");
     // await testGenerateAndProve(expressLockFile, "express", "4.22.0");

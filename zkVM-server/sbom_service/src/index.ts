@@ -162,7 +162,8 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
     if (!file) return res.status(400).json({ success: false, error: '未上傳任何檔案' });
 
     // 定義暫存 SBOM 的路徑，供 Grype 讀取
-    const tempSbomPath = `${file.path}_sbom.json`;
+    const cleanPath = file.path.replace(/_d\d+(?=\.json)/, '');
+    const tempSbomPath = `${cleanPath}_sbom.json`;
 
     try {
         // 定義 component 的正規化函式，確保每個 component 都有 bomRef 和 hash
@@ -181,7 +182,7 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
 
         // 1. 執行 Syft & 進行 grype 漏洞掃描
         console.log(`[Debug] 執行 syft 生成 SBOM...`);
-        const command = `syft ${file.path} -o cyclonedx-json`;
+        const command = `syft ${cleanPath} -o cyclonedx-json`;
         const stdout = execSync(command, {
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -301,8 +302,8 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
             const childrenRefs = dependencyMap.get(componentId) || [];
             const childrenComponents = childrenRefs
                 .map(ref => componentMap.get(ref))
-                .filter((child): child is SbomComponent => child !== undefined); 
-            
+                .filter((child): child is SbomComponent => child !== undefined);
+
             // 這裡的核心改動：使用子節點的 merkleRoot 而非原始 hash
             const childrenRoots = childrenComponents.map(child => {
                 if (!child.merkleData) {
@@ -316,10 +317,10 @@ app.post('/generate', upload.single('file'), async (req: Request, res: Response)
                 .update([c.hash, ...[...childrenRoots].sort()].join('|'))
                 .digest('hex');
 
-            if (globalMerkleCache.has(fingerprint)) {
-                c.merkleData = globalMerkleCache.get(fingerprint);
-                continue;
-            }
+            // if (globalMerkleCache.has(fingerprint)) {
+            //     c.merkleData = globalMerkleCache.get(fingerprint);
+            //     continue;
+            // }
 
             const localLeaves = [
                 c.hash,

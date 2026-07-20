@@ -326,7 +326,7 @@ export class SbomProcessor {
 
         // --- 新增：重平衡依賴圖以避免過大的 Fan-out ---
         // 降低 MAX_CHILDREN 以適應 RISC Zero gRPC 緩衝區限制 (未壓縮的收據體積很大)
-        const MAX_CHILDREN = 50;
+        const MAX_CHILDREN = 10000; // 先避免產生 virtual-batch
         const balanceTree = (ref: string) => {
             let children = dependencyMap.get(ref) || [];
             let iteration = 0;
@@ -467,14 +467,48 @@ export class SbomProcessor {
 
         const maxDepth = getDepth(rootRef, 0);
 
+        // Calculate complexity = |edge num| / (|vertex num| - |leaves|)
+        let edgeNum = 0;
+        let leafNum = 0;
+        componentMap.forEach((c, ref) => {
+            const children = (dependencyMap.get(ref) || []).filter(childRef => componentMap.has(childRef));
+            edgeNum += children.length;
+            if (children.length === 0) {
+                leafNum++;
+            }
+        });
+
+        const rootComponent = componentMap.get(rootRef);
+        const cbfValue = rootComponent ? (rootComponent.descendants_count / maxDepth) : 0;
+        // const complexity = (vertexNum - leafNum) > 0 ? (edgeNum / (vertexNum - leafNum)) : 0;
+
+        const internalNodeNum = componentMap.size - leafNum;
+        const avgOutDegree = internalNodeNum > 0 ? (edgeNum / internalNodeNum) : 0;
+
+        let sumSqDiff = 0;
+        componentMap.forEach((c, ref) => {
+            const children = (dependencyMap.get(ref) || []).filter(childRef => componentMap.has(childRef));
+            if (children.length > 0) {
+                const degree = children.length;
+                sumSqDiff += Math.pow(degree - avgOutDegree, 2);
+            }
+        });
+
+        const variance = internalNodeNum > 0 ? (sumSqDiff / internalNodeNum) : 0;
+        const stdDev = Math.sqrt(variance);
+
         console.log("\n========================================");
         console.log("📊 SBOM Dependency Tree Statistics");
         console.log("----------------------------------------");
         console.log(`- Total Nodes (Inc. Batches): ${componentMap.size}`);
         console.log(`- Virtual Batch Nodes:       ${batchNodes}`);
         console.log(`- Actual Components:         ${componentMap.size - batchNodes}`);
-        console.log(`- Leaf Nodes (No Deps):      ${leafNodes}`);
+        console.log(`- Leaf Nodes (No Deps):      ${leafNum}`);
         console.log(`- Tree Max Depth:            ${maxDepth}`);
+        console.log(`- Total Edges:               ${edgeNum}`);
+        console.log(`- Avg out-degree:           ${avgOutDegree}`);
+        console.log(`- CBF:                       ${cbfValue}`);
+        console.log(`- Effective Out-Degree Standard Deviation: ${stdDev.toFixed(4)}`);
         console.log("========================================\n");
     }
 
@@ -508,7 +542,7 @@ export class SbomProcessor {
     //             }
     //         }
     //         if (!targetHash) {
-    //             targetHash = crypto.createHash('sha256').update(`${name}@${comp.version || "unknown"}`).digest('hex');
+    //             targetHash = crypto.createHash('sha256').update(`${ name }@${ comp.version || "unknown" }`).digest('hex');
     //         }
 
     //         const validComp: SbomComponent = {
@@ -586,12 +620,12 @@ export class SbomProcessor {
         components.forEach(c => {
             // 1. 定義節點 (加上 hash 的前 6 碼讓它看起來更專業)
             const shortHash = c.hash.substring(0, 6);
-            dot += `    "${c.bomRef}" [label="{ ${c.name} | ${c.version} | ${shortHash} }", style=filled, fillcolor="#e1f5fe"];\n`;
+            dot += `    "${c.bomRef}"[label = "{ ${c.name} | ${c.version} | ${shortHash} }", style = filled, fillcolor = "#e1f5fe"]; \n`;
 
             // 2. 建立連線
             const children = dependencyMap.get(c.bomRef) || [];
             children.forEach(childRef => {
-                dot += `    "${c.bomRef}" -> "${childRef}";\n`;
+                dot += `    "${c.bomRef}" -> "${childRef}"; \n`;
             });
         });
 
@@ -671,7 +705,7 @@ export class SbomProcessor {
         if (realLeafCount === 0) throw new Error("No valid hashes found after filtering");
 
         // 輔助函式：縮短 Hash 顯示
-        const shortHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)}`;
+        const shortHash = (h: string) => `${h.slice(0, 6)}...${h.slice(-4)} `;
 
         // 1. 補齊至 2 的冪次方
         let nextPowerOf2 = 1;
@@ -689,14 +723,14 @@ export class SbomProcessor {
 
         // 繪製葉子節點 (Layer 0)
         for (let i = 0; i < workingLayer.length; i++) {
-            const nodeId = `L0_${i}`;
+            const nodeId = `L0_${i} `;
             const hashLabel = shortHash(workingLayer[i]!);
             if (i < realLeafCount) {
                 const info = leafInfo[i]!;
-                const label = `${info.name}\\n${info.version}\\n${hashLabel}`;
-                dot += `    "${nodeId}" [label="${label}", shape=box, style=filled, fillcolor="#e6f3ff", color="#0066cc"];\n`;
+                const label = `${info.name} \\n${info.version} \\n${hashLabel} `;
+                dot += `    "${nodeId}"[label = "${label}", shape = box, style = filled, fillcolor = "#e6f3ff", color = "#0066cc"]; \n`;
             } else {
-                dot += `    "${nodeId}" [label="Padding\\n${hashLabel}", shape=box, style="dashed,filled", fillcolor="#f0f0f0", fontcolor="#999999"];\n`;
+                dot += `    "${nodeId}"[label = "Padding\\n${hashLabel}", shape = box, style = "dashed,filled", fillcolor = "#f0f0f0", fontcolor = "#999999"]; \n`;
             }
         }
 
@@ -713,21 +747,21 @@ export class SbomProcessor {
                 const parentHash = this.sha256(left, right);
                 nextLayer.push(parentHash);
 
-                const parentId = `L${layerIdx + 1}_${i / 2}`;
-                const leftChildId = `L${layerIdx}_${i}`;
-                const rightChildId = `L${layerIdx}_${i + 1}`;
+                const parentId = `L${layerIdx + 1}_${i / 2} `;
+                const leftChildId = `L${layerIdx}_${i} `;
+                const rightChildId = `L${layerIdx}_${i + 1} `;
 
                 // 定義父節點（如果是最後一層則是 Root）
                 const isRoot = nextLayer.length === 1 && currentLayer.length === 2;
                 if (isRoot) {
-                    dot += `    "${parentId}" [label="ROOT\\n${shortHash(parentHash)}", shape=diamond, style=filled, fillcolor="#fff3e6", color="#ff9900", penwidth=2];\n`;
+                    dot += `    "${parentId}"[label = "ROOT\\n${shortHash(parentHash)}", shape = diamond, style = filled, fillcolor = "#fff3e6", color = "#ff9900", penwidth = 2]; \n`;
                 } else {
-                    dot += `    "${parentId}" [label="${shortHash(parentHash)}", shape=box, style=filled, fillcolor="#ffffff", color="#666666"];\n`;
+                    dot += `    "${parentId}"[label = "${shortHash(parentHash)}", shape = box, style = filled, fillcolor = "#ffffff", color = "#666666"]; \n`;
                 }
 
                 // 建立連接線
-                dot += `    "${leftChildId}" -> "${parentId}";\n`;
-                dot += `    "${rightChildId}" -> "${parentId}";\n`;
+                dot += `    "${leftChildId}" -> "${parentId}"; \n`;
+                dot += `    "${rightChildId}" -> "${parentId}"; \n`;
             }
             layers.push(nextLayer);
             currentLayer = nextLayer;
