@@ -33,5 +33,5 @@ zkBOM 證明的是：在給定的 SBOM、掃描器輸出、漏洞資料庫與政
 
 ## 論文
 完整論文可參考以下連結：
-english version: https://drive.google.com/file/d/1zeGYxTDdjGc1rFxn6yS70szyw84_yPkS/view?usp=sharing
-ppt: https://docs.google.com/presentation/d/1jK3t4tDmD1dkc_YhIw6ijtNnbkF-_QmC/edit?usp=sharing&ouid=117296951005488225216&rtpof=true&sd=true
+- english version: https://drive.google.com/file/d/1zeGYxTDdjGc1rFxn6yS70szyw84_yPkS/view?usp=sharing
+- ppt: https://docs.google.com/presentation/d/1jK3t4tDmD1dkc_YhIw6ijtNnbkF-_QmC/edit?usp=sharing&ouid=117296951005488225216&rtpof=true&sd=true
