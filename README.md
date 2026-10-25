@@ -30,3 +30,8 @@ zkBOM 將 SBOM 相依圖轉成可驗證的密碼學承諾，並在 RISC Zero zkV
 ## 範圍與限制
 
 zkBOM 證明的是：在給定的 SBOM、掃描器輸出、漏洞資料庫與政策版本下，承諾的依賴圖符合所編碼的規則。它不保證漏洞資料庫完整，也無法證明尚未公開的零時差漏洞不存在，或涵蓋未表示在 SBOM 中的語意缺陷。因此，zkBOM 是漏洞管理與供應鏈稽核的補充，而非取代人工審查、修補流程或執行期監控。
+
+## 論文
+完整論文可參考以下連結：
+english version: https://drive.google.com/file/d/1zeGYxTDdjGc1rFxn6yS70szyw84_yPkS/view?usp=sharing
+ppt: https://docs.google.com/presentation/d/1jK3t4tDmD1dkc_YhIw6ijtNnbkF-_QmC/edit?usp=sharing&ouid=117296951005488225216&rtpof=true&sd=true
